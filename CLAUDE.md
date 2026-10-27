@@ -44,6 +44,7 @@ Chuyển trạng thái hợp lệ:
 - `OFFICIAL` → `REOPENED` (chỉ TTKT, bắt buộc lý do)
 - `REOPENED` → `AWAITING_CONFIRMATION` | `OFFICIAL` (duyệt ngoại lệ)
 - Sửa tỷ số ở bất kỳ bước nào phải xóa xác nhận cũ của cả 2 bên.
+- Tùy chọn `Tournament.requireTechnicalApproval` mặc định false giữ PRD. Nếu true, đủ xác nhận vẫn AWAITING_CONFIRMATION, TTKT dùng APPROVE_PUBLICATION (kiểm đủ xác nhận) mới OFFICIAL; duyệt ngoại lệ/BYE nhập bởi TTKT vẫn OFFICIAL. Không thêm trạng thái thứ 6.
 
 ## 3. Loại kết quả (`Match.result`) — không gộp chung
 
@@ -81,6 +82,7 @@ Chuyển trạng thái hợp lệ:
    `oldValue`, `newValue` (JSON snapshot `{status, result, whiteConfirmedAt, blackConfirmedAt}`), `reason`, `createdAt`.
 - Log mới luôn lưu `tournamentId`, `roundNumber`, `board` độc lập; API toàn giải không phụ thuộc `matchId` (có thể null sau re-import). Các cột nullable chỉ để giữ nguyên log mồ côi trước migration.
 - `reason` bắt buộc với `APPROVE_EXCEPTION`, `EDIT_RESULT` (khi đã OFFICIAL), `REOPEN`.
+- `APPROVE_PUBLICATION` là duyệt bàn đã đủ xác nhận, không phải ngoại lệ, không bắt lý do; luôn audit cùng transaction. Bulk UI duyệt từng bàn có kiểm expectedUpdatedAt, dừng và báo phần đã xong nếu xung đột.
 - `createdAt` lưu UTC trong DB; luôn hiển thị/xuất theo múi giờ giải `Asia/Ho_Chi_Minh` (`Tournament.timezone`),
   dùng `Intl.DateTimeFormat(..., { timeZone })`.
 
@@ -95,6 +97,10 @@ Chuyển trạng thái hợp lệ:
 - `src/lib/colors.ts`: chữ đen/trắng trên nền nhận diện theo WCAG >= 4.5:1; không dùng màu giải làm chữ trên nền cố định (có thể không đọc được).
 - `xlsx` cài từ `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`, không cài bản trên npm registry (có lỗ hổng).
 - Không lưu mật khẩu/secret vào code hay memory; dùng `.env`.
+- Node >=20.20.2: ghim iron-session 8.0.4 (cookie 0.7.x), không nâng v9 nếu còn hỗ trợ Node20.
+- Seed thiếu password sinh ngẫu nhiên cho tài khoản mới, cảnh báo console; tài khoản có sẵn giữ nguyên nếu không truyền password. SEED_DEFAULT_TOURNAMENT=true tạo mẫu idempotent, mặc định không tạo.
+- `npm run package:deploy` dùng danh sách source cho phép + tar/filter/verify, không đưa DB/.env vào gói; redeploy-server.sh kiểm archive trước extract và gọi deploy.sh giữ DB/backup, không reset/seed tự động.
+- Xóa giải chỉ TTKT qua DELETE /api/tournaments/[id] với confirmName chính xác. FK cascade xóa vòng/bàn/kỳ thủ/import/audit theo giải, kể cả log có matchId=null; không xóa User hay giải khác. Re-import vẫn giữ audit SetNull.
 
 ## Project Memory Guidelines
 

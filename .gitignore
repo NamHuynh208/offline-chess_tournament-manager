@@ -15,7 +15,9 @@
 /test-results/
 /playwright-report/
 /.deploy.lock
+/.redeploy.lock
 /giaidau-deploy.tar.gz
+/giaidau-deploy.tar.gz.tmp
 
 # next.js
 /.next/

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, Hand, ShieldAlert, WifiOff, XCircle } from "lucide-react";
 import type { ResultType } from "@prisma/client";
 import type { ClientMatch } from "@/lib/matches";
-import { SIDE_LABEL, type RecorderAction, type Side } from "@/lib/match-state";
+import { readyToPublish, SIDE_LABEL, toState, type RecorderAction, type Side } from "@/lib/match-state";
 import { RESULT_DISPLAY } from "@/lib/results";
 import { ConfirmMarks, PieceDot, PlayerLine, StatusBadge } from "./ui";
 
@@ -42,7 +42,8 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
   };
 
   const editable = ["PENDING_RESULT", "AWAITING_CONFIRMATION", "REOPENED"].includes(m.status);
-  const canContinue = m.status === "AWAITING_CONFIRMATION" && !!m.result;
+  const awaitingPublication = readyToPublish(toState(m));
+  const canContinue = m.status === "AWAITING_CONFIRMATION" && !!m.result && !awaitingPublication;
   const canRequestException = ["AWAITING_CONFIRMATION", "DISPUTED"].includes(m.status) && !!m.result;
   const label = `Bàn ${m.board}`;
 
@@ -63,6 +64,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
 
         {m.status === "DISPUTED" && <Note tone="red">Có bất đồng – chờ Trọng tài kỹ thuật xử lý. Kết quả chưa được công bố.</Note>}
         {m.status === "OFFICIAL" && <Note tone="green">Kết quả đã chính thức. Muốn sửa cần Trọng tài kỹ thuật mở lại.</Note>}
+        {awaitingPublication && <Note tone="green">Đã đủ xác nhận kỳ thủ — chờ Trọng tài kỹ thuật duyệt công bố.</Note>}
 
         {canContinue && (
           <BigButton className="bg-sky-600 text-white" onClick={() => go(m.whiteConfirmedAt ? "handoff" : "WHITE")}>
@@ -162,7 +164,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
               ? "Có bất đồng"
               : m.exceptionReason
                 ? "Đã gửi yêu cầu duyệt ngoại lệ"
-                : "Chưa hoàn tất xác nhận"}
+                 : awaitingPublication ? "Chờ TTKT duyệt công bố" : "Chưa hoàn tất xác nhận"}
         </div>
         <div className="text-5xl font-black tabular-nums">{m.result ? RESULT_DISPLAY[m.result].score : ""}</div>
         <p className="max-w-md text-lg">
@@ -174,7 +176,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
                 : "Cảm ơn hai kỳ thủ."
               : m.exceptionReason
                 ? `Lý do: ${m.exceptionReason}`
-                : "Kiểm tra lại trạng thái ván trong danh sách."}
+                 : awaitingPublication ? "Đã đủ xác nhận kỳ thủ. Kết quả chỉ lên máy chiếu sau khi TTKT duyệt công bố." : "Kiểm tra lại trạng thái ván trong danh sách."}
         </p>
         {pendingSync && offline && (
           <p className="flex items-center gap-2 rounded-xl bg-black/25 px-4 py-3 font-semibold">

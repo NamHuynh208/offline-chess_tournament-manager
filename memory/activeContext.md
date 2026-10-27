@@ -1,8 +1,10 @@
-> Cập nhật: 2026-10-27
+> Cập nhật: 2026-10-28
 
-- Vừa xong: cấu hình Ubuntu deploy PM2/Nginx và script deploy.sh, README hướng dẫn HTTPS/DB/seed/reboot; không thực hiện triển khai server.
-- GitHub: đã tạo repo private https://github.com/NamHuynh208/uscc-tournament-manager, remote origin HTTPS, nhánh master; commit/push toàn bộ source hiện tại, loại .env/DB/cache/report/archive/.claude. Xác thực Git Credential Manager, không ghi token vào repo/memory.
+- Vừa xong: review phần tạo/chuyển giải/seed/Node20/package đã có; bổ sung nút cấu hình Header, DELETE giải có gõ tên xác nhận + cascade, tùy chọn requireTechnicalApproval và TTKT duyệt công bố từng bàn/hàng loạt. 17/17 Chromium PASS, chưa deploy VM.
+- Sửa Header TTKT theo ảnh: bỏ hậu tố vai trò sau fullName để không lặp, dropdown và nút cùng cao 44px/căn đáy, icon Lucide18px căn giữa/shrink-0, nhóm điều khiển responsive không tràn 390px/1920px. Build/lint + 17/17 acceptance Node20 PASS, có assert layout/icon/header name. Gói deploy xuất lại sau sửa UI.
+- GitHub: https://github.com/NamHuynh208/offline-chess_tournament-manager, origin HTTPS, nhánh master. User đã yêu cầu commit/push toàn bộ cập nhật quản lý giải/duyệt công bố/Node20/deploy/Header; loại .env/DB/archive/report khỏi commit. Kiểm thử gần nhất 17/17 Chromium + build/lint/tsc PASS.
 - Đóng gói source thành `giaidau-deploy.tar.gz` để chuyển VM; loại node_modules/.next/.git/report, .env thật, DB local, cache TypeScript, .claude và chính archive; giữ .env.example/migrations/deploy configs. Chưa upload vì chưa có địa chỉ/SSH VM.
+- Đã nén lại bản mới theo yêu cầu sau khi log VM cho thấy đang dùng archive cũ; gói cần có iron-session8.0.4, migration approval/cascade và nút tạo/sửa/xóa giải. Chưa gửi lên VM.
 - Quyết định:
   - State machine thuần `src/lib/match-state.ts` dùng chung server + client: client áp thao tác lạc quan, server kiểm lại.
   - Mọi thao tác đi qua hàng đợi (`src/lib/offline-queue.ts`, localStorage theo userId) rồi gửi ngay; lỗi mạng/5xx -> giữ lại, 409 -> đánh dấu lỗi, trọng tài "Bỏ thao tác này" (bỏ luôn các thao tác sau của cùng ván).
@@ -18,15 +20,24 @@
 - Polling dùng chung `useLiveTournament`: không chồng request, timeout 4 giây, giữ dữ liệu và thời điểm thành công cuối khi mất mạng. API live chỉ dành TTKT; payload projector xóa tỷ số chưa OFFICIAL.
 - Thao tác TTKT online bắt buộc lý do + `expectedUpdatedAt`; transaction cũ ghi Match/AuditLog đồng thời. Hủy dùng EDIT_RESULT với `operation=CANCEL_RESULT`, trạng thái REOPENED và result=null (không thêm enum/migration).
 - Sửa kết quả chọn xác nhận lại hoặc ngoại lệ ngay; audit lưu mode/operation và snapshot trước/sau. Modal dùng dialog native để khóa focus và hỗ trợ Escape.
-- Kiểm tra cuối: npm test (19), TypeScript, lint và production build PASS. `npm run test:acceptance`: 15 PASS, 0 skip/failed/flaky, gồm đủ 10 tiêu chí + hồi quy 409 offline, audit re-import, import TOCTOU UI/API/transaction, export status 400.
-- Chromium thật: tra đủ 40 bàn/80 phía kỳ thủ ở 390x844, kiosk xác nhận/bất đồng; projector 1920x1080, phân quyền/mất mạng/carousel/điểm; cập nhật đo 2422ms trên localhost (không bảo đảm mạng LAN thực).
-- File XLS mẫu vòng 2, XML mẫu vòng 1: test 9 import override round=1 và so byte HTTP xuất XML nguyên vẹn; Excel kiểm sheet/cột/40 dòng và đối soát.
+- Kiểm tra cuối: iron-session8.0.4/cookie0.7.2 Node20 giữ nguyên; build/lint/tsc/npm test (thêm migration DB cũ + approval) PASS. Acceptance 17 PASS/0skip/0flaky trên Node20.20.2; đủ 10 PRD + xóa giải, duyệt công bố. Prisma diff không lệch schema.
+- Chromium thật: 40 bàn/80 phía kỳ thủ ở 390x844, kiosk/ngoại lệ; projector 1920x1080, phân quyền/mất mạng/carousel/điểm, đo 2438ms localhost. Chưa test Ubuntu/PM2/Nginx/máy chiếu thật.
+- File XLS thực trong Git hiện Ván1 (không sửa file), sửa test-samples kỳ vọng 1; dataset acceptance thường override round=2, test XML override round=1, giữ so byte nguyên vẹn.
 - Đã sửa: form cấu hình đầy đủ + update state ngay và projector polling; `resultVersion` lưu vào localStorage, thiếu/cũ trả 409; thoát kiosk và bắt kiểm tra lại khi bị từ chối; AuditLog lưu giải/vòng/bàn trực tiếp; HMAC previewToken và transaction Serializable chống import cũ; `Object.hasOwn` chặn prototype export status.
 - Migration `20261027180000_result_version_audit_context` đã tạo, generate client và migrate deploy trên DB dev. Backfill audit còn liên kết ván; log mất matchId từ trước migration không suy luận giải cũ, giữ nguyên nullable (không xóa/không gán bừa).
 - Tương thích: client/API cũ thiếu expectedVersion hoặc previewToken sẽ nhận 409 an toàn; cần tải lại web, kiểm tra lại thao tác cũ trong queue / chạy lại Preview.
 - Contrast dùng `src/lib/colors.ts` WCAG >=4.5:1; projector tỷ số trên nền màu giải với chữ đen/trắng, test 4096 màu.
 - `npm audit`: 5 cảnh báo (4 high, 1 moderate) theo dependency chain Prisma/deepmerge-ts và Next/PostCSS; chưa nâng major tự động.
 - Deployment: `ecosystem.config.js` uscc-giaidau 1 fork, Next loopback 127.0.0.1:3005; Nginx giaidau.namprojects.site, buffering/cache/gzip off, timeout 86400s, body 20M, Upgrade WebSocket.
-- `deploy.sh [--pull]`: Node>=22, env .env duy nhất/secret không commit, SQLite absolute path ngoài repo, flock, pull ff-only, stop PM2, SQLite .backup, npm ci/include dev + generate/migrate/build, PM2 startOrReload/healthcheck/save. Downtime được ghi rõ, không tự rollback DB/seed/xóa backup.
+- `deploy.sh [--pull]`: Node>=20.20.2, .env duy nhất, SQLite absolute path khuyến nghị; chấp nhận file:./prod.db theo prisma/ không đổi DB. TZ Asia/Ho_Chi_Minh, flock, pull ff-only/stop/backup/ci/generate/migrate/build/PM2 healthcheck. Downtime, không rollback/seed/xóa backup tự động.
 - Cookie production Secure bắt buộc HTTPS (README Certbot); app upload vẫn 5 MiB, Nginx 20 MiB chỉ là giới hạn request.
 - Kiểm deploy config bằng assert + lint; Bash/Nginx syntax và triển khai Ubuntu chưa chạy vì Windows không có Bash/Nginx, Docker daemon không hoạt động.
+- TechnicalApp dùng TournamentSettings chung create/edit qua Modal native, POST tạo xong prepend state + chọn ngay; header dropdown và nút tạo mới, empty state rõ ràng.
+- Record dropdown luôn hiện nếu có giải; ưu tiên giải mới nhất đã bắt đầu/chưa kết thúc, không gắn trạng thái giải mới. Chuyển giải xóa dữ liệu ván cũ/chặn response cũ; chọn lại cùng giải không xóa ván.
+- Seed: thiếu/blank env không throw; tài khoản mới random riêng 24 bytes và cảnh báo console (giữ kín log); tài khoản cũ không đổi khi thiếu password. Explicit password cập nhật; mẫu tùy chọn id uscc-seed-demo không trùng.
+- package:deploy dùng tar7.5.22 đa nền tảng (dev dep), allowlist source + filter + kiểm nội dung, loại .env/DB/journal/WAL/SHM/cache/reports/symlink và chính archive. redeploy-server.sh Python3 validate archive/traversal/symlink trước tar extract, gọi deploy.sh dùng chung để backup/migrate/build/reload. Không đụng DB dev/server trong kiểm thử.
+- requireTechnicalApproval mặc định false, đủ xác nhận vẫn OFFICIAL theo PRD. Khi true đủ xác nhận vẫn AWAITING_CONFIRMATION, readyToPublish hiển thị Cần xử lý + nút Duyệt công bố/Duyệt nhanh; action APPROVE_PUBLICATION chỉ TTKT, kiểm đủ xác nhận/version, audit transaction. Ngoại lệ/BYE TTKT vẫn OFFICIAL. Đổi cờ không tự công bố bàn chờ/không thu hồi official.
+- ClientMatch kèm cờ qua matchInclude.round.tournament, state machine dùng chung offline/server; server đọc cấu hình thật và kiểm lại updatedAt giải trong transaction Serializable. Điện thoại đủ xác nhận báo chờ duyệt, không đưa vào kiosk xác nhận lần nữa.
+- DELETE /api/tournaments/[id] body confirmName chính xác, TTKT-only, một delete cascade giải/vòng/bàn/player/import/audit kể cả matchId=null; giữ user/giải khác. UI modal gõ tên + Hủy, tự chọn giải còn lại/empty sau xóa.
+- Migration 20261028010000_tournament_approval_cascade thêm cờ/default, AuditLog->Tournament Cascade và Match->Player Cascade. Đã migrate DB dev, test nâng cấp DB cũ giữ result/log; không thao tác DB VM.
+- Filter đóng gói chặn mọi *.db* (gồm prod.db.backup), test gói thật chống lọt DB/secret. Xuất lại giaidau-deploy.tar.gz sau test.

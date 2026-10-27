@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { ClientMatch } from "./matches";
 
 export type LiveTournament = {
-  tournament: { id: string; name: string; logoUrl: string | null; primaryColor: string; timezone: string };
+  tournament: { id: string; name: string; logoUrl: string | null; primaryColor: string; timezone: string; requireTechnicalApproval: boolean };
   rounds: { number: number; matches: ClientMatch[] }[];
 };
 

@@ -7,10 +7,11 @@ import type { ClientMatch } from "@/lib/matches";
 import { applyAction, toState, type RecorderAction } from "@/lib/match-state";
 import { loadQueue, newOpId, saveQueue, type QueuedOp } from "@/lib/offline-queue";
 import { RESULT_DISPLAY } from "@/lib/results";
+import { defaultTournament } from "@/lib/tournament-selection";
 import ResultFlow from "./ResultFlow";
 import { ConfirmMarks, PlayerLine, StatusBadge, textOn } from "./ui";
 
-type Tournament = { id: string; name: string; primaryColor: string; rounds: number[] };
+type Tournament = { id: string; name: string; primaryColor: string; startDate: string | null; endDate: string | null; rounds: number[] };
 
 const FILTERS: { label: string; has: (s: MatchStatus) => boolean }[] = [
   { label: "Tất cả", has: () => true },
@@ -56,7 +57,7 @@ async function sendOp(op: QueuedOp): Promise<SendResult> {
 }
 
 export default function RecordApp({ user, tournaments }: { user: { id: string; fullName: string }; tournaments: Tournament[] }) {
-  const [tid, setTid] = useState(tournaments[0]?.id ?? "");
+  const [tid, setTid] = useState(() => defaultTournament(tournaments)?.id ?? "");
   const t = tournaments.find((x) => x.id === tid);
   const [round, setRound] = useState(t?.rounds.at(-1) ?? 0);
   const [serverMatches, setServerMatches] = useState<ClientMatch[]>([]);
@@ -117,15 +118,17 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
   }, [updateQueue]);
 
   const loadMatches = useCallback(async () => {
-    if (!tid || !round) return setLoadState("ok");
     const seq = ++loadSeq.current;
+    if (!tid || !round) { setServerMatches([]); return setLoadState("ok"); }
     setLoadState("loading");
     try {
       const res = await fetch(`/api/tournaments/${tid}/rounds/${round}/matches`, { cache: "no-store" });
       if (seq !== loadSeq.current) return;
       if (res.status === 401) setAuthLost(true);
       if (!res.ok) throw new Error();
-      setServerMatches((await res.json()).matches);
+      const body = await res.json();
+      if (seq !== loadSeq.current) return;
+      setServerMatches(body.matches);
       setLoadState("ok");
     } catch {
       if (seq === loadSeq.current) setLoadState("error");
@@ -239,10 +242,16 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
         )}
 
         <div className="flex flex-col gap-3 px-4 pb-3">
-          {tournaments.length > 1 && (
+          {tournaments.length > 0 && (
             <select
               value={tid}
               onChange={(e) => {
+                if (e.target.value === tid) return;
+                ++loadSeq.current;
+                setSelectedId(null);
+                setServerMatches([]);
+                setQuery("");
+                setFilter(0);
                 setTid(e.target.value);
                 setRound(tournaments.find((x) => x.id === e.target.value)?.rounds.at(-1) ?? 0);
               }}

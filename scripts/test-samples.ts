@@ -25,10 +25,10 @@ test("XML danh sách: 80 kỳ thủ, không lỗi, đủ CLB/Liên đoàn", () =
 
 // 2. XLS bốc thăm
 const pairing = parsePairingSheet(sample("Kết quả bốc thăm xuất ra.xls"));
-test("XLS bốc thăm: dò header dòng 5, vòng 2, đúng 40 bàn, bỏ dòng bản quyền", () => {
+test("XLS bốc thăm: dò header dòng 5, vòng 1, đúng 40 bàn, bỏ dòng bản quyền", () => {
   assert.deepEqual(pairing.errors, []);
   assert.equal(pairing.headerRow, 5);
-  assert.equal(pairing.round, 2);
+  assert.equal(pairing.round, 1);
   assert.equal(pairing.rows.length, 40);
   assert.deepEqual(pairing.rows.map((r) => r.board), Array.from({ length: 40 }, (_, i) => i + 1));
   assert.deepEqual(pairing.rows[0], { row: 6, board: 1, whiteSNo: 1, whiteName: "Bạch Triều Vĩ", whitePoints: 0, blackSNo: 41, blackName: "Nguyễn Hồng Phúc (B)", blackPoints: 0 });

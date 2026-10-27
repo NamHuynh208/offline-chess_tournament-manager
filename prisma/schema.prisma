@@ -44,6 +44,7 @@ enum AuditAction {
   APPROVE_EXCEPTION // TTKT duyệt ngoại lệ -> OFFICIAL
   EDIT_RESULT
   REOPEN
+  APPROVE_PUBLICATION // đủ xác nhận, TTKT duyệt công bố (không phải ngoại lệ)
 }
 
 model User {
@@ -70,11 +71,13 @@ model Tournament {
   logoUrl      String?
   primaryColor String    @default("#38bdf8") // màu nhận diện, mặc định sky blue nhạt
   timezone     String    @default("Asia/Ho_Chi_Minh")
+  requireTechnicalApproval Boolean @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   players      Player[]
   rounds       Round[]
   importLogs   ImportLog[]
+  auditLogs    AuditLog[]
 }
 
 model Player {
@@ -117,9 +120,9 @@ model Match {
   round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
   board         Int
   whitePlayerId String
-  whitePlayer   Player      @relation("White", fields: [whitePlayerId], references: [id])
+  whitePlayer   Player      @relation("White", fields: [whitePlayerId], references: [id], onDelete: Cascade)
   blackPlayerId String?     // null khi BYE
-  blackPlayer   Player?     @relation("Black", fields: [blackPlayerId], references: [id])
+  blackPlayer   Player?     @relation("Black", fields: [blackPlayerId], references: [id], onDelete: Cascade)
   whitePoints   Float?      // điểm trước vòng, lấy từ cột "Điểm" của file bốc thăm
   blackPoints   Float?
   status        MatchStatus @default(PENDING_RESULT)
@@ -142,6 +145,7 @@ model AuditLog {
   id        String      @id @default(cuid())
   // Nullable chỉ cho log mồ côi đã mất matchId trước migration; log mới luôn điền đủ.
   tournamentId String?
+  tournament Tournament? @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   roundNumber Int?
   board       Int?
   // null khi ván bị xóa do nhập lại bốc thăm (bản chụp ván cũ nằm ở ImportLog.replaced)

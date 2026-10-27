@@ -16,6 +16,7 @@ module.exports = {
       time: true,
       env_production: {
         NODE_ENV: "production",
+        TZ: "Asia/Ho_Chi_Minh",
         PORT: "3005",
         HOSTNAME: "127.0.0.1",
         NEXT_TELEMETRY_DISABLED: "1",

@@ -11,9 +11,9 @@ npm run test:acceptance
 ```
 
 - `test:acceptance` chạy `npm run build` trước, rồi production server ở cổng tạm, áp migrations vào SQLite tạm và tạo 2 tài khoản test với mật khẩu ngẫu nhiên. Không dùng/ghi dữ liệu giải trong DB dev.
-- `tests/acceptance/prd.spec.ts`: 10 test PRD + 5 test hồi quy. Kiểm cả API và Chromium thật: tra đủ 80 phía kỳ thủ trên 40 bàn, UI import preview/lỗi/ghi đè, cấu hình đầy đủ, xác nhận offline qua reload, bảo toàn audit, chống import snapshot cũ trong transaction và trạng thái export không hợp lệ.
+- `tests/acceptance/prd.spec.ts`: 17 test (10 tiêu chí PRD + hồi quy): DB trống → tạo/chuyển/xóa giải, cascade cả audit mất matchId, kiểm quyền/xác nhận xóa; chế độ TTKT duyệt từng bàn/hàng loạt và Projector chỉ công bố sau duyệt. Kiểm đủ 80 phía kỳ thủ trên 40 bàn, UI import, cấu hình, offline, audit và chống ghi đè.
 - Tiêu chí 6 đo thời gian từ lúc bắt đầu xác nhận đến khi DOM projector có tỷ số, không reload; kèm kiểm tra Dashboard, phân quyền, mất mạng, đồng bộ lại, phân trang/carousel.
-- XML được so sánh từng byte qua HTTP. XLS mẫu là vòng 2 nhưng XML mẫu là vòng 1, nên test 9 dùng override vòng 1 khi nhập cùng file XLS; không chỉnh sửa file kỳ vọng.
+- XML được so sánh từng byte qua HTTP. File XLS hiện tại ghi vòng 1; dataset các test thường dùng override vòng 2, riêng test XML dùng vòng 1. Không chỉnh sửa file mẫu kỳ vọng.
 - Kết quả: `test-results/acceptance.json`, `playwright-report/index.html`, log server và screenshot/trace khi thất bại. Xem bằng `npx playwright show-report`.
 - Tiêu chí 10 dùng form thật trên `/technical`: tên, thời gian theo timezone giải, địa điểm, số vòng, tổ chức, URL logo, màu; lưu/reload và cập nhật projector đang mở không reload. Không skip/đánh dấu expected failure.
 - Chạy lại toàn bộ suite bằng runner, không trỏ trực tiếp test vào server/DB đang dùng. DB tạm được xóa sau khi kết thúc; báo cáo có thể chứa dữ liệu test và cookie phiên test, không đưa công khai.
@@ -29,6 +29,17 @@ npx prisma generate
 - API thao tác tại bàn bắt buộc `expectedVersion` (lấy từ `match.resultVersion`) cho nhập/xác nhận/bất đồng/yêu cầu ngoại lệ. Nhập, sửa, hủy hoặc mở lại tăng version; xác nhận Trắng/Đen không tăng. Sai/thiếu version trả 409 với ván mới nhất. Hàng đợi offline cũ thiếu version bị từ chối an toàn, cần kiểm tra và xác nhận lại.
 - Import XML kỳ thủ và XLS bốc thăm: gọi Preview, gửi lại `previewToken` cùng file/tham số khi Commit. Thiếu/sai token hoặc snapshot DB đổi trả 409 và yêu cầu Preview lại. Token HMAC gắn nội dung file và snapshot toàn giải; thay đổi ở vòng khác cũng yêu cầu Preview lại để ưu tiên an toàn dữ liệu.
 - Thay đổi ván và AuditLog cùng transaction; import dùng transaction Serializable và kiểm snapshot trước khi ghi.
+- Migration `20261028010000_tournament_approval_cascade`: cờ `Tournament.requireTechnicalApproval` mặc định false; FK cascade AuditLog → Tournament và Match → Player để xóa giải sạch, giữ liên kết AuditLog → Match dạng SetNull cho re-import. Unit test nâng cấp DB cũ có dữ liệu kiểm không mất kết quả/log, mặc định false và xóa đúng phạm vi.
+- `DELETE /api/tournaments/[id]` chỉ TTKT: JSON `{ "confirmName": "Tên giải chính xác" }`. Xóa vĩnh viễn kỳ thủ/vòng/bàn/import/audit thuộc giải; giữ tài khoản và các giải khác. Trên UI phải nhập đúng tên giải, có nút Hủy; sau xóa tự chọn giải còn lại hoặc về màn hình tạo đầu tiên. Backup trước khi xóa nếu cần lưu lịch sử.
+
+## Quản lý giải và duyệt công bố
+
+- Header `/technical`: chọn giải, **+ Tạo giải mới**, **Cấu hình / Sửa giải** (đưa tới form chỉnh sửa ngay trong trang), **Xoá giải đấu**. Empty state có nút tạo giải đầu tiên. Không cần curl để tạo/chỉnh/xóa giải.
+- Trong form tạo/sửa, tùy chọn **Trọng tài kỹ thuật duyệt trước khi lên máy chiếu** mặc định **tắt**: đủ xác nhận thì OFFICIAL ngay theo PRD.
+- Khi bật, cả hai xác nhận xong vẫn `AWAITING_CONFIRMATION`, không có tỷ số trên Projector/export XML chính thức. Điện thoại báo chờ TTKT; Dashboard đưa bàn vào **Cần xử lý**, có **Duyệt công bố** hoặc **Duyệt nhanh tất cả bàn đã đủ xác nhận**.
+- Duyệt công bố chỉ TTKT, chỉ bàn đủ xác nhận và chưa bất đồng; dùng expectedUpdatedAt, ghi action `APPROVE_PUBLICATION` cùng transaction. Duyệt nhanh chỉ xử lý danh sách đã đủ xác nhận lúc bấm, từng bàn có audit; nếu có xung đột/lỗi mạng thì dừng và báo số đã duyệt, không ghi đè kết quả mới.
+- Duyệt ngoại lệ vẫn cần lý do và thành OFFICIAL ngay; BYE nhập từ bốc thăm là ngoại lệ TTKT nên giữ chính thức, không giả xác nhận Đen. Đổi tùy chọn không thu hồi OFFICIAL cũ, không tự công bố bàn đang chờ; các bàn đã đủ xác nhận có thể duyệt từ Dashboard kể cả sau khi tắt cờ.
+- Sau cập nhật, tải lại web ở các máy trọng tài để lấy cấu hình/giao diện mới. Server luôn đọc cờ thật từ DB, không tin cờ từ điện thoại/offline; kiểm lại phiên bản cấu hình trong transaction.
 
 ## Getting Started
 
@@ -63,13 +74,13 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ### 1. Chuẩn bị server
 
-- Node.js **22 LTS**, npm, Git; dùng một tài khoản deploy thường, không chạy ứng dụng bằng root.
+- Node.js **>=20.20.2**, hỗ trợ Node 20/22; khuyến nghị bản LTS còn được hỗ trợ bảo mật khi mở Internet. Dùng tài khoản deploy thường, không chạy ứng dụng bằng root. `iron-session` ghim **8.0.4** (`cookie` 0.7.x), không còn yêu cầu Node >=22 của bản 9.
 - DNS A (và AAAA nếu dùng IPv6) của `giaidau.namprojects.site` trỏ về server; mở firewall cổng 80/443, không mở 3005.
 - Cài công cụ:
 
 ```bash
 sudo apt update
-sudo apt install -y nginx sqlite3 curl git certbot python3-certbot-nginx
+sudo apt install -y nginx sqlite3 curl git python3 certbot python3-certbot-nginx
 npm install -g pm2
 ```
 
@@ -82,6 +93,11 @@ Tạo thư mục dữ liệu nằm **ngoài repo**, ví dụ `/srv/giaidau/data`
 ```dotenv
 DATABASE_URL="file:/srv/giaidau/data/production.db"
 SESSION_SECRET="THAY_BANG_CHUOI_NGAU_NHIEN_IT_NHAT_32_KY_TU"
+NODE_ENV="production"
+TZ="Asia/Ho_Chi_Minh"
+SEED_ADMIN_PASSWORD=""
+SEED_ARBITER_PASSWORD=""
+SEED_DEFAULT_TOURNAMENT="false"
 ```
 
 Sinh secret bằng `node -e "console.log(require('node:crypto').randomBytes(48).toString('hex'))"`, thay placeholder rồi `chmod 600 .env`. Không commit `.env`, không dùng mật khẩu mẫu. Giữ secret ổn định qua các lần deploy để không làm hết hạn toàn bộ phiên.
@@ -102,11 +118,31 @@ bash deploy.sh --pull
 
 **Có downtime trong lúc cài/build**: đây là deploy tại chỗ an toàn cho một process SQLite, không phải zero-downtime. Chạy ngoài giờ thi đấu; nếu lỗi sau khi đã dừng, ứng dụng giữ trạng thái dừng để bạn xử lý, không tự chạy code/schema không tương thích. Backup nằm ở `/srv/giaidau/data/backups`; cần chính sách giữ bản sao/off-server riêng, script không tự xóa backup.
 
-Lần đầu, đặt mật khẩu mạnh cho `SEED_ADMIN_PASSWORD` và `SEED_ARBITER_PASSWORD` trong `.env`, chạy `npm run db:seed` một lần từ thư mục app, sau đó bỏ hai biến khỏi `.env`. Seed chạy lại sẽ đổi mật khẩu tài khoản tương ứng.
+Lần đầu, đặt mật khẩu mạnh cho `SEED_ADMIN_PASSWORD` và `SEED_ARBITER_PASSWORD` trong `.env`, chạy `npm run db:seed` một lần từ thư mục app. Nếu thiếu/để trống, seed **không dừng**: tài khoản mới nhận mật khẩu ngẫu nhiên riêng (in kèm cảnh báo trên console; giữ kín log này), tài khoản có sẵn được giữ nguyên mật khẩu/quyền. Nếu truyền mật khẩu rõ ràng rồi seed lại, mật khẩu tài khoản tương ứng được cập nhật. Không có mật khẩu cố định dùng chung.
+
+`SEED_DEFAULT_TOURNAMENT="true"` tạo một giải mẫu 7 vòng, không tạo trùng khi chạy lại. Mặc định không tạo mẫu; TTKT có thể dùng **Tạo giải đấu đầu tiên / + Tạo giải mới** ngay tại `/technical`, tự chuyển sang giải mới để nhập bốc thăm. Dropdown ở `/record` ưu tiên giải mới nhất đang diễn ra (ngày bắt đầu/kết thúc nếu có), fallback giải mới nhất nếu không có giải phù hợp.
 
 PM2 chạy **một fork**, Next bind `127.0.0.1:3005`. Biến production không nhạy cảm nằm trong `ecosystem.config.js`; secret/DB nạp từ `.env` bởi deploy. Xem log: `pm2 logs uscc-giaidau --lines 100`. Thiết lập tự chạy sau reboot bằng `pm2 startup`, thực hiện đúng lệnh sudo PM2 in ra, rồi `pm2 save` bằng cùng tài khoản deploy. PM2 có thể lưu môi trường trong `~/.pm2/dump.pm2`; bảo vệ thư mục này và không đưa lên Git.
 
-Schema hiện là **SQLite**. Không chỉ đổi DATABASE_URL sang PostgreSQL: cần đổi provider, chuẩn bị/test migrations PostgreSQL riêng trước. Không đặt DB production trong `prisma/dev.db` hoặc thư mục checkout.
+Schema hiện là **SQLite**. Không chỉ đổi DATABASE_URL sang PostgreSQL: cần đổi provider, chuẩn bị/test migrations PostgreSQL riêng trước. Khuyến nghị DB ngoài thư mục checkout. Nếu server đã dùng `DATABASE_URL="file:./prod.db"`, giữ nguyên: Prisma hiểu là `prisma/prod.db`, script deploy giải đúng đường dẫn để backup, không đổi sang DB mới/rỗng.
+
+### Cập nhật bằng file nén, giữ nguyên DB server
+
+Trên máy phát triển:
+```bash
+npm run package:deploy
+scp giaidau-deploy.tar.gz USER@VM_IP:/tmp/giaidau-deploy.tar.gz
+```
+
+Script đóng gói dùng tar đa nền tảng, danh sách source cho phép và kiểm lại archive trước khi hoàn tất; không chứa `.env` thật, `*.db`/journal/WAL/SHM, backups, dependencies, build, Git hay báo cáo test. `prod.db` trên server không nằm trong gói và không bị ghi đè khi giải nén. Có dependency dev `tar` để chạy lệnh này trên cả Windows/Ubuntu.
+
+Trên server đã có app/script:
+```bash
+cd /srv/giaidau/app
+bash scripts/redeploy-server.sh /tmp/giaidau-deploy.tar.gz
+```
+
+Nếu server cũ chưa có script này, chép riêng `scripts/redeploy-server.sh` mới vào thư mục scripts trước. Script kiểm tra archive bằng Python3 (chặn DB/secret, traversal và symlink), dừng PM2 rồi `tar -xzvf`; gọi `deploy.sh` dùng chung chuỗi `npm ci`, Prisma generate/migrate deploy, build, PM2 reload/start, healthcheck. Không xóa/reset/seed DB, không ghi đè `.env`; backup SQLite trước migration. Có downtime như deploy Git, không tự rollback khi thất bại.
 
 ### 4. Nginx và HTTPS
 

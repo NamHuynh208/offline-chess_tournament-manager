@@ -4,9 +4,10 @@ import { applyAction, parseAction, parseTechnicalAction, type MatchState, type R
 import { hasImportedPoints, projectorScore } from "../src/lib/projector";
 import type { ClientMatch } from "../src/lib/matches";
 import { textOn } from "../src/lib/colors";
+import { defaultTournament } from "../src/lib/tournament-selection";
 
 const T = "2026-10-27T03:00:00.000Z";
-const fresh: MatchState = { resultVersion: 0, status: "PENDING_RESULT", result: null, whiteConfirmedAt: null, blackConfirmedAt: null, exceptionReason: null, hasBlack: true };
+const fresh: MatchState = { resultVersion: 0, status: "PENDING_RESULT", result: null, whiteConfirmedAt: null, blackConfirmedAt: null, exceptionReason: null, hasBlack: true, requireTechnicalApproval: false };
 const run = (m: MatchState, ...as: RecorderAction[]) =>
   as.reduce((s, a) => {
     const r = applyAction(s, a, T);
@@ -113,4 +114,23 @@ test("Màu nhận diện: chữ đen/trắng đạt độ tương phản WCAG 4.
     assert.ok(contrast >= 4.5, `${hex}: ${contrast}`);
   }
 });
-console.log("\nState machine + Projector + Contrast: PASS");
+test("Chọn giải mới nhất đang diễn ra, bỏ giải tương lai/kết thúc và fallback nếu không có giải phù hợp", () => {
+  const now = Date.parse(T);
+  const future = { startDate: "2099-01-01", endDate: null };
+  const current = { startDate: "2026-01-01", endDate: null };
+  const old = { startDate: null, endDate: "2025-01-01" };
+  assert.equal(defaultTournament([future, current, old], now), current);
+  assert.equal(defaultTournament([future, old], now), future);
+  assert.equal(defaultTournament([], now), undefined);
+});
+test("TTKT duyệt trước: đủ xác nhận vẫn chờ, chặn duyệt thiếu xác nhận/bất đồng và ghi đúng action", () => {
+  const gated = run({ ...fresh, requireTechnicalApproval: true }, { type: "ENTER_RESULT", result: "DRAW" }, { type: "CONFIRM", side: "WHITE" }, { type: "CONFIRM", side: "BLACK" });
+  assert.equal(gated.status, "AWAITING_CONFIRMATION");
+  assert.equal(applyAction(gated, { type: "APPROVE_PUBLICATION" }, T).ok, false);
+  const approved = applyAction(gated, { type: "APPROVE_PUBLICATION" }, T, "TECHNICAL_ARBITER");
+  assert.ok(approved.ok); assert.equal(approved.next.status, "OFFICIAL"); assert.equal(approved.audit, "APPROVE_PUBLICATION");
+  assert.equal(applyAction({ ...gated, blackConfirmedAt: null }, { type: "APPROVE_PUBLICATION" }, T, "TECHNICAL_ARBITER").ok, false);
+  assert.equal(applyAction({ ...gated, status: "DISPUTED" }, { type: "APPROVE_PUBLICATION" }, T, "TECHNICAL_ARBITER").ok, false);
+  assert.deepEqual(parseTechnicalAction({ type: "APPROVE_PUBLICATION" }), { type: "APPROVE_PUBLICATION" });
+});
+console.log("\nState machine + Projector + Contrast + Tournament: PASS");

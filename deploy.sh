@@ -15,7 +15,7 @@ fi
 for cmd in node npm npx pm2 curl flock; do
   command -v "$cmd" >/dev/null || { echo "Thiếu lệnh: $cmd" >&2; exit 1; }
 done
-node -e 'if (Number(process.versions.node.split(".")[0]) < 22) { console.error("Cần Node.js >=22 (khuyến nghị Node 22 LTS)"); process.exit(1); }'
+node -e 'const [major, minor, patch] = process.versions.node.split(".").map(Number); if (major < 20 || (major === 20 && (minor < 20 || (minor === 20 && patch < 2)))) { console.error("Cần Node.js >=20.20.2 (khuyến nghị Node 22 LTS)"); process.exit(1); }'
 
 # Chặn hai lần deploy đồng thời, không xóa file lock sau khi chạy.
 exec 9>.deploy.lock
@@ -34,7 +34,7 @@ for file in .env.local .env.production .env.production.local; do
   [[ ! -f "$file" ]] || { echo "Hãy hợp nhất $file vào .env trước khi deploy để tránh lệch cấu hình Prisma/Next." >&2; exit 1; }
 done
 chmod 600 .env
-export NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+export NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 TZ=Asia/Ho_Chi_Minh
 DATABASE_URL="$(node --env-file=.env -e 'process.stdout.write(process.env.DATABASE_URL || "")')"
 SESSION_SECRET="$(node --env-file=.env -e 'process.stdout.write(process.env.SESSION_SECRET || "")')"
 export DATABASE_URL SESSION_SECRET
@@ -42,11 +42,12 @@ node -e '
   if (!process.env.DATABASE_URL || !process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32 || process.env.SESSION_SECRET.startsWith("change-me")) {
     console.error("Cần DATABASE_URL và SESSION_SECRET ngẫu nhiên >=32 ký tự trong .env"); process.exit(1);
   }
-  if (!process.env.DATABASE_URL.startsWith("file:/")) {
-    console.error("Schema hiện dùng SQLite: DATABASE_URL phải là file:/đường/dẫn/tuyệt/đối/production.db"); process.exit(1);
+  if (!process.env.DATABASE_URL.startsWith("file:")) {
+    console.error("Schema hiện dùng SQLite: DATABASE_URL phải bắt đầu bằng file:"); process.exit(1);
   }
 '
 DB_PATH="${DATABASE_URL#file:}"
+if [[ "$DB_PATH" != /* ]]; then DB_PATH="$PWD/prisma/$DB_PATH"; fi
 [[ "$DB_PATH" != *'?'* && "$DB_PATH" != *'#'* ]] || { echo "Dùng SQLite path thuần, không có query/fragment." >&2; exit 1; }
 mkdir -p -- "$(dirname -- "$DB_PATH")"
 if [[ -f "$DB_PATH" ]]; then

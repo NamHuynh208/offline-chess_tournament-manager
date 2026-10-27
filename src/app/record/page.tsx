@@ -8,12 +8,12 @@ export default async function RecordPage() {
   if (auth.error) redirect("/login");
   const tournaments = await prisma.tournament.findMany({
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, primaryColor: true, rounds: { select: { number: true }, orderBy: { number: "asc" } } },
+    select: { id: true, name: true, primaryColor: true, startDate: true, endDate: true, rounds: { select: { number: true }, orderBy: { number: "asc" } } },
   });
   return (
     <RecordApp
       user={{ id: auth.user.id, fullName: auth.user.fullName }}
-      tournaments={tournaments.map((t) => ({ ...t, rounds: t.rounds.map((r) => r.number) }))}
+      tournaments={tournaments.map((t) => ({ ...t, startDate: t.startDate?.toISOString() ?? null, endDate: t.endDate?.toISOString() ?? null, rounds: t.rounds.map((r) => r.number) }))}
     />
   );
 }

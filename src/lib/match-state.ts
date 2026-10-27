@@ -14,6 +14,7 @@ export type MatchState = {
   blackConfirmedAt: string | null;
   exceptionReason: string | null;
   hasBlack: boolean;
+  requireTechnicalApproval: boolean;
 };
 
 export type RecorderAction =
@@ -23,12 +24,14 @@ export type RecorderAction =
   | { type: "REQUEST_EXCEPTION"; reason: string };
 
 export type TechnicalAction =
+  | { type: "APPROVE_PUBLICATION" }
   | { type: "APPROVE_EXCEPTION" | "REOPEN" | "CANCEL_RESULT"; reason: string }
   | { type: "EDIT_RESULT"; result: ResultType; reason: string; mode: "CONFIRM" | "EXCEPTION" };
 
 export function parseTechnicalAction(x: unknown): TechnicalAction | null {
   if (!x || typeof x !== "object") return null;
   const a = x as Record<string, unknown>;
+  if (a.type === "APPROVE_PUBLICATION") return { type: a.type };
   if (typeof a.reason !== "string" || !a.reason.trim() || a.reason.length > 500) return null;
   if (a.type === "APPROVE_EXCEPTION" || a.type === "REOPEN" || a.type === "CANCEL_RESULT") return { type: a.type, reason: a.reason.trim() };
   if (a.type === "EDIT_RESULT" && RESULT_TYPES.includes(a.result as ResultType) && (a.mode === "CONFIRM" || a.mode === "EXCEPTION")) {
@@ -45,6 +48,7 @@ export const toState = (m: Omit<MatchState, "hasBlack"> & { black: unknown }): M
   blackConfirmedAt: m.blackConfirmedAt,
   exceptionReason: m.exceptionReason,
   hasBlack: !!m.black,
+  requireTechnicalApproval: m.requireTechnicalApproval,
 });
 
 const RESULT_TYPES = Object.keys(RESULT_DISPLAY) as ResultType[];
@@ -68,8 +72,15 @@ export function parseAction(x: unknown): RecorderAction | null {
 
 type Outcome = { ok: true; next: MatchState; audit: AuditAction } | { ok: false; error: string };
 
+export const readyToPublish = (m: Pick<MatchState, "status" | "result" | "whiteConfirmedAt" | "blackConfirmedAt" | "hasBlack">) => m.status === "AWAITING_CONFIRMATION" && !!m.result && !!m.whiteConfirmedAt && (!!m.blackConfirmedAt || !m.hasBlack);
+
 export function applyAction(m: MatchState, a: RecorderAction | TechnicalAction, now: string, role: Role = "RECORDING_ARBITER"): Outcome {
   const fail = (error: string) => ({ ok: false as const, error });
+  if (a.type === "APPROVE_PUBLICATION") {
+    if (role !== "TECHNICAL_ARBITER") return fail("Chỉ Trọng tài kỹ thuật được duyệt công bố");
+    if (!readyToPublish(m)) return fail("Chỉ duyệt công bố khi ván đang chờ và đã đủ xác nhận kỳ thủ");
+    return { ok: true, audit: "APPROVE_PUBLICATION", next: { ...m, status: "OFFICIAL", exceptionReason: null } };
+  }
   if (["APPROVE_EXCEPTION", "EDIT_RESULT", "REOPEN", "CANCEL_RESULT"].includes(a.type)) {
     if (role !== "TECHNICAL_ARBITER") return fail("Chỉ Trọng tài kỹ thuật được thực hiện");
     if (!("reason" in a) || !a.reason.trim() || a.reason.length > 500) return fail("Cần nhập lý do (tối đa 500 ký tự)");
@@ -103,7 +114,7 @@ export function applyAction(m: MatchState, a: RecorderAction | TechnicalAction, 
       if (a.type === "DISPUTE") return { ok: true, audit: "DISPUTE", next: { ...m, status: "DISPUTED" } };
       const next = { ...m, [key]: now };
       const both = !!next.whiteConfirmedAt && (!!next.blackConfirmedAt || !m.hasBlack);
-      return { ok: true, audit: a.side === "WHITE" ? "CONFIRM_WHITE" : "CONFIRM_BLACK", next: both ? { ...next, status: "OFFICIAL" } : next };
+      return { ok: true, audit: a.side === "WHITE" ? "CONFIRM_WHITE" : "CONFIRM_BLACK", next: both && !m.requireTechnicalApproval ? { ...next, status: "OFFICIAL" } : next };
     }
     case "REQUEST_EXCEPTION": {
       if (!["AWAITING_CONFIRMATION", "DISPUTED"].includes(m.status) || !m.result) {

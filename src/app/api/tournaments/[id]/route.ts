@@ -30,3 +30,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
   }
   return Response.json(await prisma.tournament.update({ where: { id }, data: d }));
 }
+
+export async function DELETE(req: Request, { params }: Ctx) {
+  const auth = await requireUser("TECHNICAL_ARBITER");
+  if (auth.error) return auth.error;
+  const { id } = await params;
+  const body = await req.json().catch(() => null);
+  if (typeof body?.confirmName !== "string" || !body.confirmName.trim()) return Response.json({ error: "Nhập đúng tên giải để xác nhận xóa vĩnh viễn" }, { status: 400 });
+  const deleted = await prisma.tournament.deleteMany({ where: { id, name: body.confirmName } });
+  if (!deleted.count) return Response.json({ error: "Không tìm thấy giải hoặc tên giải đã thay đổi. Hãy kiểm tra lại." }, { status: 409 });
+  return Response.json({ deleted: true });
+}

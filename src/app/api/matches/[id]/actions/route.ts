@@ -25,7 +25,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const opId = typeof body?.opId === "string" && /^[\w-]{8,64}$/.test(body.opId) ? body.opId : null;
   const clientAt = typeof body?.clientAt === "string" && !isNaN(Date.parse(body.clientAt)) ? body.clientAt : null;
 
-  const load = () => prisma.match.findUnique({ where: { id }, include: { ...matchInclude, round: true } });
+  const load = () => prisma.match.findUnique({ where: { id }, include: matchInclude });
   const duplicate = opId ? await prisma.auditLog.findUnique({ where: { clientOpId: opId } }) : null;
   if (duplicate) {
     if (duplicate.matchId !== id || duplicate.userId !== auth.user.id) return Response.json({ error: "Mã thao tác đã được dùng cho tài khoản hoặc bàn khác" }, { status: 409 });
@@ -45,6 +45,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const n = r.next;
   try {
     const updated = await prisma.$transaction(async (tx) => {
+      const tournament = await tx.tournament.findUnique({ where: { id: m.round.tournamentId } });
+      if (!tournament || tournament.updatedAt.getTime() !== m.round.tournament.updatedAt.getTime()) throw new Conflict();
       // so updatedAt để 2 máy cùng thao tác 1 ván không ghi đè nhau
       const { count } = await tx.match.updateMany({
         where: { id, updatedAt: m.updatedAt, resultVersion: m.resultVersion },
@@ -74,11 +76,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         },
       });
       return tx.match.findUniqueOrThrow({ where: { id }, include: matchInclude });
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return Response.json({ match: toClientMatch(updated) });
   } catch (e) {
     const dupOp = e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002"; // cùng opId gửi 2 lần song song
-    if (!(e instanceof Conflict) && !dupOp) throw e;
+    const concurrent = e instanceof Prisma.PrismaClientKnownRequestError && ["P2034", "P1008", "P2028"].includes(e.code);
+    if (!(e instanceof Conflict) && !dupOp && !concurrent) throw e;
     const fresh = await load();
     return dupOp
       ? Response.json({ match: fresh && toClientMatch(fresh), duplicate: true })

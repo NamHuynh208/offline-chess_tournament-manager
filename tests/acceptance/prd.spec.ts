@@ -6,6 +6,9 @@ import * as XLSX from "xlsx";
 import { XMLParser } from "fast-xml-parser";
 import { RESULT_FROM_CODE, SM_CODE } from "../../src/lib/results";
 import type { ClientMatch } from "../../src/lib/matches";
+import { planPairing, planPlayers, ImportConflict } from "../../src/lib/imports";
+import { prisma } from "../../src/lib/db";
+import { parsePairingSheet, parsePlayersXml } from "../../src/lib/swiss-manager";
 
 if (!process.env.TEST_DATABASE_URL?.includes("uscc-acceptance-") || !process.env.TEST_BASE_URL || !process.env.TEST_PASSWORD) {
   throw new Error("Chạy npm run test:acceptance để dùng DB/server tạm an toàn");
@@ -45,9 +48,11 @@ const test = base.extend<{ tech: APIRequestContext; recorder: APIRequestContext;
     // Không dọn dữ liệu ở đây: toàn bộ DB tạm bị xóa khi runner kết thúc, giữ log khi test đang chạy.
   },
 });
-test.afterAll(async () => db.$disconnect());
+test.afterAll(async () => { await db.$disconnect(); await prisma.$disconnect(); });
 
 async function upload(api: APIRequestContext, tid: string, kind: string, buffer: Buffer, mode = "preview", name = "pairing.xls", extra: Record<string, string> = {}, status = mode === "commit" ? 201 : 200) {
+  // Fixture gốc hiện là Ván 1; giữ dataset các bài test ở vòng 2 bằng override API.
+  if (kind === "pairing" && buffer.equals(pairingFile) && !extra.round) extra = { ...extra, round: "2" };
   if (mode === "commit" && !Object.hasOwn(extra, "previewToken")) {
     const preview = await upload(api, tid, kind, buffer, "preview", name, extra);
     extra = { ...extra, previewToken: preview.previewToken };
@@ -70,6 +75,107 @@ async function official(api: APIRequestContext, m: ClientMatch, result: ResultTy
 async function loginPage(page: Page, api: APIRequestContext, path: string) {
   await page.context().addCookies((await api.storageState()).cookies); await page.goto(path);
 }
+
+test("00 — DB trống: tạo giải đầu tiên/thứ hai, tự chọn giải mới, chuyển giải TTKT và trọng tài ghi", async ({ page, tech, recorder }) => {
+  expect(await db.tournament.count()).toBe(0); // runner tạo DB test sạch; không xóa dữ liệu của test khác
+  await loginPage(page, tech, "/technical");
+  await expect(page.getByRole("button", { name: "Tạo giải đấu đầu tiên", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "+ Tạo giải mới", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Tạo giải đấu mới", exact: true });
+  await dialog.getByRole("textbox", { name: "Tên giải", exact: true }).fill("USCC Open");
+  await dialog.getByLabel(/Bắt đầu/).fill("2020-01-01T08:00");
+  await dialog.getByLabel("Địa điểm", { exact: true }).fill("CLB USCC");
+  await dialog.getByLabel("Số vòng", { exact: true }).fill("9");
+  await dialog.getByLabel("Đơn vị tổ chức", { exact: true }).fill("USCC");
+  await dialog.getByRole("textbox", { name: "URL logo", exact: true }).fill("/favicon.ico");
+  await dialog.getByLabel("Màu sắc nhận diện", { exact: true }).fill("#a855f7");
+  const created = page.waitForResponse((r) => r.url().endsWith("/api/tournaments") && r.request().method() === "POST" && r.status() === 201);
+  await dialog.getByRole("button", { name: "Tạo giải đấu", exact: true }).click();
+  const first = await (await created).json();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Giải đấu" })).toHaveValue(first.id);
+  await expect(page.getByRole("heading", { name: "Nhập bốc thăm", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "USCC Open", exact: true })).toBeVisible();
+  await expect(page.locator("header p")).toHaveText("TTKT kiểm thử");
+  const controls = page.getByRole("group", { name: "Quản lý giải đấu", exact: true });
+  const boxes = await controls.locator("select, button").evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return { height: r.height, bottom: r.bottom }; }));
+  expect(boxes).toHaveLength(4);
+  for (const box of boxes) { expect(box.height).toBe(44); expect(Math.abs(box.bottom - boxes[0].bottom)).toBeLessThanOrEqual(1); }
+  for (const width of [1920, 390]) {
+    await page.setViewportSize({ width, height: 1080 });
+    expect(await page.locator("header").evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    for (const icon of await page.locator("header button svg, header a svg").all()) {
+      const iconBox = await icon.boundingBox(); const parentBox = await icon.locator("..").boundingBox();
+      expect(iconBox!.width).toBe(18); expect(iconBox!.height).toBe(18);
+      expect(Math.abs(iconBox!.y + iconBox!.height / 2 - parentBox!.y - parentBox!.height / 2)).toBeLessThanOrEqual(1);
+    }
+  }
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.getByRole("button", { name: "+ Tạo giải mới", exact: true }).click();
+  await dialog.getByRole("textbox", { name: "Tên giải", exact: true }).fill("USCC U12");
+  const createdSecond = page.waitForResponse((r) => r.url().endsWith("/api/tournaments") && r.request().method() === "POST" && r.status() === 201);
+  await dialog.getByRole("button", { name: "Tạo giải đấu", exact: true }).click();
+  const second = await (await createdSecond).json();
+  await expect(page.getByRole("combobox", { name: "Giải đấu" })).toHaveValue(second.id);
+  await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(first.id);
+  await expect(page.getByRole("textbox", { name: "Tên giải", exact: true })).toHaveValue("USCC Open");
+  await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(second.id);
+  await expect(page.getByRole("textbox", { name: "Tên giải", exact: true })).toHaveValue("USCC U12");
+  await page.reload(); await expect(page.getByRole("combobox", { name: "Giải đấu" }).locator("option")).toHaveCount(2);
+  await upload(tech, first.id, "pairing", pairingFile, "commit");
+  // Một giải tạo mới hơn nhưng chưa bắt đầu không được thay giải hiện đang diễn ra.
+  const future = await tech.post("/api/tournaments", { data: { name: "Giải tương lai", totalRounds: 7, startDate: "2099-01-01T00:00:00Z" } }); expect(future.status()).toBe(201);
+  await loginPage(page, recorder, "/record");
+  await expect(page.getByRole("combobox", { name: "Giải đấu" })).toHaveValue(second.id);
+  await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(first.id);
+  await expect(page.getByRole("button").filter({ has: page.getByText("Bàn 1", { exact: true }) })).toBeVisible();
+  await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(second.id);
+  await expect(page.getByRole("button").filter({ has: page.getByText("Bàn 1", { exact: true }) })).toHaveCount(0);
+  await expect(page.getByText("Chưa có vòng đấu nào được nhập.", { exact: true })).toBeVisible();
+  expect((await recorder.post("/api/tournaments", { data: { name: "Không có quyền", totalRounds: 7 } })).status()).toBe(403);
+  expect((await recorder.delete(`/api/tournaments/${first.id}`, { data: { confirmName: first.name } })).status()).toBe(403);
+  expect((await tech.delete(`/api/tournaments/${first.id}`)).status()).toBe(400);
+  expect((await tech.delete(`/api/tournaments/${first.id}`, { data: { confirmName: "sai tên" } })).status()).toBe(409);
+  const m = await official(recorder, (await matches(recorder, first.id))[0]);
+  const oldLog = await db.auditLog.findFirstOrThrow({ where: { matchId: m.id } });
+  const changed = sourceRows.map((r) => [...r]);
+  [changed[0][1], changed[1][1]] = [changed[1][1], changed[0][1]];
+  [changed[0][2], changed[1][2]] = [changed[1][2], changed[0][2]];
+  await upload(tech, first.id, "pairing", sheet([["Ván 2"], header, ...changed]), "commit", "changed.xlsx", { confirmOverwrite: "true" });
+  expect((await db.auditLog.findUniqueOrThrow({ where: { id: oldLog.id } })).matchId).toBeNull();
+  const beforeUsers = await db.user.count();
+  await loginPage(page, tech, "/technical");
+  await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(first.id);
+  await page.getByRole("button", { name: "Cấu hình / Sửa giải", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Tên giải", exact: true })).toBeFocused();
+  const rounds = await db.round.findMany({ where: { tournamentId: first.id }, select: { id: true } });
+  const matchIds = (await db.match.findMany({ where: { roundId: { in: rounds.map((r) => r.id) } }, select: { id: true } })).map((m) => m.id);
+  await page.getByRole("button", { name: "Xoá giải đấu", exact: true }).click();
+  const deletion = page.getByRole("dialog", { name: "Xác nhận xoá giải đấu", exact: true });
+  await expect(deletion.getByRole("button", { name: "Xác nhận xoá vĩnh viễn", exact: true })).toBeDisabled();
+  await deletion.getByRole("button", { name: "Hủy", exact: true }).click();
+  expect(await db.tournament.count({ where: { id: first.id } })).toBe(1);
+  for (const t of [first, await future.json(), second]) {
+    await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(t.id);
+    await page.getByRole("button", { name: "Xoá giải đấu", exact: true }).click();
+    await deletion.getByLabel("Nhập đúng tên giải để xác nhận", { exact: true }).fill(t.name);
+    await deletion.getByRole("button", { name: "Xác nhận xoá vĩnh viễn", exact: true }).click();
+    await expect(deletion).toHaveCount(0);
+    expect(await db.tournament.count({ where: { id: t.id } })).toBe(0);
+    if (t.id === first.id) {
+      expect(await db.round.count({ where: { tournamentId: first.id } })).toBe(0);
+      expect(await db.player.count({ where: { tournamentId: first.id } })).toBe(0);
+      expect(await db.match.count({ where: { id: { in: matchIds } } })).toBe(0);
+      expect(await db.importLog.count({ where: { tournamentId: first.id } })).toBe(0);
+      expect(await db.auditLog.count({ where: { tournamentId: first.id } })).toBe(0);
+      expect(await db.tournament.count({ where: { id: second.id } })).toBe(1);
+      await expect(page.getByRole("combobox", { name: "Giải đấu" })).not.toHaveValue(first.id);
+    }
+  }
+  expect(await db.user.count()).toBe(beforeUsers);
+  await expect(page.getByRole("button", { name: "Tạo giải đấu đầu tiên", exact: true })).toBeVisible();
+  await page.reload(); await expect(page.getByRole("button", { name: "Tạo giải đấu đầu tiên", exact: true })).toBeVisible();
+});
 
 test("01 — Nhập XLS thật: preview không ghi DB, báo lỗi dòng/cột, chặn ghi đè chưa xác nhận", async ({ tech, tid }) => {
   const r = await tech.post("/api/tournaments", { data: { name: "Preview riêng", totalRounds: 9 } });
@@ -260,8 +366,8 @@ test("08 — BYE không có Đen/xác nhận giả; đặc biệt hiển thị �
 });
 
 test("09 — XML HTTP khớp từng byte mẫu; Excel đúng sheet, cột, dữ liệu chính thức/đối soát", async ({ tech, recorder, tid }) => {
-  // XLS mẫu là vòng 2, XML mẫu là vòng 1: nhập lại cùng cặp đấu với round=1,
-  // không sửa byte nào của file XML kỳ vọng để che sai khác dữ liệu fixture.
+  // Dataset thường ở vòng 2; riêng xuất XML dùng round=1 như file kỳ vọng.
+  // Không sửa byte nào của file XML kỳ vọng để che sai khác dữ liệu fixture.
   await upload(tech, tid, "pairing", pairingFile, "commit", "pairing.xls", { round: "1" });
   const ms = await matches(recorder, tid, 1);
   for (const [i, r] of resultRows.entries()) {
@@ -404,12 +510,9 @@ test("14 — Export XLSX: chặn khóa prototype/enum sai bằng 400 thay vì 50
 });
 
 test("15 — Transaction import kiểm lại snapshot sau lập plan; token ràng buộc nội dung file và không được bỏ qua Preview", async ({ tech, recorder, tid }) => {
-  const { planPairing, planPlayers, ImportConflict } = await import("../../src/lib/imports");
-  const { prisma } = await import("../../src/lib/db");
-  const { parsePairingSheet, parsePlayersXml } = await import("../../src/lib/swiss-manager");
   try {
     const user = await db.user.findUniqueOrThrow({ where: { username: "test-tech" } });
-    const pairingPlan = await planPairing(tid, parsePairingSheet(pairingFile));
+    const pairingPlan = await planPairing(tid, parsePairingSheet(pairingFile), 2);
     const playersPlan = await planPlayers(tid, parsePlayersXml(playersFile.toString("utf8")));
     const imports = await db.importLog.count({ where: { tournamentId: tid } });
     await action(recorder, (await matches(recorder, tid))[0], { type: "ENTER_RESULT", result: "DRAW" });
@@ -423,4 +526,62 @@ test("15 — Transaction import kiểm lại snapshot sau lập plan; token ràn
     await upload(tech, tid, "pairing", sheet([["Ván 2"], header, ...changedPoints]), "commit", "different.xlsx", { previewToken: preview.previewToken }, 409);
     await upload(tech, tid, "pairing", pairingFile, "commit", "pairing.xls", { previewToken: preview.previewToken });
   } finally { await prisma.$disconnect(); }
+});
+
+test("16 — Tùy chọn TTKT duyệt: đủ 2 xác nhận vẫn chờ, duyệt từng bàn/hàng loạt có audit, ngoại lệ vẫn chính thức", async ({ page, tech, recorder, tid }) => {
+  const original = await (await tech.get(`/api/tournaments/${tid}`)).json(); expect(original.requireTechnicalApproval).toBe(false);
+  expect((await tech.patch(`/api/tournaments/${tid}`, { data: { requireTechnicalApproval: "true" } })).status()).toBe(400);
+  await loginPage(page, tech, "/technical"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  await page.getByRole("checkbox", { name: "Trọng tài kỹ thuật duyệt trước khi lên máy chiếu", exact: true }).check();
+  await page.getByRole("button", { name: "Lưu cấu hình giải", exact: true }).click();
+  await expect(page.getByText("Đã lưu cấu hình giải", { exact: true })).toBeVisible();
+  expect((await (await tech.get(`/api/tournaments/${tid}`)).json()).requireTechnicalApproval).toBe(true);
+  let ms = await matches(recorder, tid);
+  let first = await official(recorder, ms[0]);
+  expect(first.status).toBe("AWAITING_CONFIRMATION"); expect(first.whiteConfirmedAt).not.toBeNull(); expect(first.blackConfirmedAt).not.toBeNull();
+  const beforePublish = first;
+  let second = await official(recorder, ms[1], "DRAW"); expect(second.status).toBe("AWAITING_CONFIRMATION");
+  let partial = await action(recorder, ms[2], { type: "ENTER_RESULT", result: "DRAW" });
+  partial = await action(recorder, partial, { type: "CONFIRM", side: "WHITE" });
+  let disputed = await action(recorder, ms[3], { type: "ENTER_RESULT", result: "DRAW" });
+  disputed = await action(recorder, disputed, { type: "DISPUTE", side: "WHITE" });
+  await action(recorder, first, { type: "APPROVE_PUBLICATION" }, 403);
+  await action(tech, partial, { type: "APPROVE_PUBLICATION" }, 409);
+  await action(tech, disputed, { type: "APPROVE_PUBLICATION" }, 409);
+  const projector = await page.context().newPage(); await projector.goto(`/projector/${tid}`);
+  await projector.getByRole("checkbox", { name: "Tự động lật trang" }).uncheck();
+  const projected = projector.locator("tbody tr").filter({ hasText: first.white.fullName });
+  await expect(projected).toContainText("Chờ chốt"); await expect(projected.locator("strong")).toHaveCount(0);
+  // Dùng context riêng để không đổi cookie của dashboard TTKT.
+  const phoneContext = await page.context().browser()!.newContext({ baseURL: process.env.TEST_BASE_URL, storageState: await recorder.storageState(), viewport: { width: 390, height: 844 } });
+  const recordingPage = await phoneContext.newPage();
+  await recordingPage.goto("/record"); await recordingPage.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  await recordingPage.getByRole("button").filter({ has: recordingPage.getByText("Bàn 1", { exact: true }) }).click();
+  await expect(recordingPage.getByText("Đã đủ xác nhận kỳ thủ — chờ Trọng tài kỹ thuật duyệt công bố.", { exact: true })).toBeVisible();
+  await expect(recordingPage.getByRole("button", { name: "Tiếp tục cho kỳ thủ xác nhận", exact: true })).toHaveCount(0);
+  await phoneContext.close();
+  const article = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Vòng 2 · Bàn 1", exact: true }) });
+  await article.getByRole("button", { name: "Duyệt công bố", exact: true }).click();
+  await expect.poll(async () => (await matches(recorder, tid))[0].status).toBe("OFFICIAL");
+  await expect(projected).toContainText("1 - 0");
+  await expect(article).toHaveCount(0);
+  await action(tech, beforePublish, { type: "APPROVE_PUBLICATION" }, 409);
+  await page.getByRole("button", { name: "Duyệt nhanh tất cả bàn đã đủ xác nhận", exact: true }).click();
+  await expect.poll(async () => (await matches(recorder, tid))[1].status).toBe("OFFICIAL");
+  ms = await matches(recorder, tid); expect(ms[2].status).toBe("AWAITING_CONFIRMATION"); expect(ms[3].status).toBe("DISPUTED");
+  for (const id of [first.id, second.id]) {
+    const audit = await db.auditLog.findFirstOrThrow({ where: { matchId: id, action: "APPROVE_PUBLICATION" }, include: { user: true } });
+    expect(audit.user.username).toBe("test-tech"); expect(JSON.parse(audit.oldValue!).status).toBe("AWAITING_CONFIRMATION"); expect(JSON.parse(audit.newValue!).status).toBe("OFFICIAL");
+  }
+  const exception = await action(tech, ms[3], { type: "APPROVE_EXCEPTION", reason: "Phân xử ngoại lệ" }); expect(exception.status).toBe("OFFICIAL");
+  await upload(tech, tid, "pairing", sheet([["Ván 3"], header, [1, 81, "BYE duyệt ngoại lệ", "", "", "", "bye", ""]]), "commit", "bye.xlsx");
+  expect((await matches(recorder, tid, 3))[0]).toMatchObject({ result: "BYE", status: "OFFICIAL", black: null });
+  expect((await tech.patch(`/api/tournaments/${tid}`, { data: { requireTechnicalApproval: false } })).ok()).toBeTruthy();
+  expect((await matches(recorder, tid))[2].status).toBe("AWAITING_CONFIRMATION");
+  const next = await official(recorder, ms[4]); expect(next.status).toBe("OFFICIAL");
+  first = (await matches(recorder, tid))[0]; expect(first.status).toBe("OFFICIAL");
+  second = (await matches(recorder, tid))[1]; expect(second.status).toBe("OFFICIAL");
+  await projector.close();
+  const created = await tech.post("/api/tournaments", { data: { name: "Giải duyệt từ đầu", totalRounds: 7, requireTechnicalApproval: true } });
+  expect(created.status()).toBe(201); expect((await created.json()).requireTechnicalApproval).toBe(true);
 });

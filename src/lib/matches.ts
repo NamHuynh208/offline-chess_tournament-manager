@@ -1,17 +1,18 @@
 import type { Match, Player } from "@prisma/client";
 
-export const matchInclude = { whitePlayer: true, blackPlayer: true } as const;
+export const matchInclude = { whitePlayer: true, blackPlayer: true, round: { include: { tournament: { select: { requireTechnicalApproval: true, updatedAt: true } } } } } as const;
 
 const player = (p: Player, points: number | null) => ({ fullName: p.fullName, startNo: p.startNo, club: p.club, points });
 
 /** Dạng gửi xuống điện thoại (ngày giờ ISO) */
-export const toClientMatch = (m: Match & { whitePlayer: Player; blackPlayer: Player | null }) => ({
+export const toClientMatch = (m: Match & { whitePlayer: Player; blackPlayer: Player | null; round: { tournament: { requireTechnicalApproval: boolean } } }) => ({
   id: m.id,
   updatedAt: m.updatedAt.toISOString(),
   board: m.board,
   status: m.status,
   result: m.result,
   resultVersion: m.resultVersion,
+  requireTechnicalApproval: m.round.tournament.requireTechnicalApproval,
   whiteConfirmedAt: m.whiteConfirmedAt?.toISOString() ?? null,
   blackConfirmedAt: m.blackConfirmedAt?.toISOString() ?? null,
   exceptionReason: m.exceptionReason,

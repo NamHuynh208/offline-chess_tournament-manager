@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!t) return Response.json({ error: "Không tìm thấy giải" }, { status: 404 });
   const projector = new URL(req.url).searchParams.get("view") === "projector";
   return Response.json({
-    tournament: { id: t.id, name: t.name, logoUrl: t.logoUrl, primaryColor: t.primaryColor, timezone: t.timezone },
+    tournament: { id: t.id, name: t.name, logoUrl: t.logoUrl, primaryColor: t.primaryColor, timezone: t.timezone, requireTechnicalApproval: t.requireTechnicalApproval },
     rounds: t.rounds.map((r) => ({ number: r.number, matches: r.matches.map((m) => {
       const c = toClientMatch(m);
       // Projector không nhận tỷ số chưa chính thức, kể cả trong payload mạng.

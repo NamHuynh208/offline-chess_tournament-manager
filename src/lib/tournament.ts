@@ -8,6 +8,7 @@ export type TournamentInput = {
   totalRounds?: number;
   logoUrl?: string | null;
   primaryColor?: string;
+  requireTechnicalApproval?: boolean;
 };
 
 export function parseTournamentInput(body: unknown, partial: boolean) {
@@ -15,6 +16,10 @@ export function parseTournamentInput(body: unknown, partial: boolean) {
   const data: TournamentInput = {};
   const errors: Record<string, string> = {};
   const has = (k: string) => b[k] !== undefined;
+  if (has("requireTechnicalApproval")) {
+    if (typeof b.requireTechnicalApproval !== "boolean") errors.requireTechnicalApproval = "Phải là true hoặc false";
+    else data.requireTechnicalApproval = b.requireTechnicalApproval;
+  }
 
   for (const k of ["name", "location", "organizer"] as const) {
     if (!has(k)) {
