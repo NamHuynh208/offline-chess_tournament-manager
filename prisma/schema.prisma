@@ -1,0 +1,183 @@
+// USCC tournament manager — xem CLAUDE.md cho quy tắc nghiệp vụ.
+// Thời gian lưu UTC; hiển thị theo Tournament.timezone (mặc định Asia/Ho_Chi_Minh).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // shortcut: SQLite cho dev; lên PostgreSQL chỉ cần đổi provider + DATABASE_URL rồi tạo lại migration.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TECHNICAL_ARBITER
+  RECORDING_ARBITER
+}
+
+enum MatchStatus {
+  PENDING_RESULT
+  AWAITING_CONFIRMATION
+  DISPUTED
+  OFFICIAL
+  REOPENED
+}
+
+// Mã Swiss-Manager tương ứng ghi ở CLAUDE.md
+enum ResultType {
+  WHITE_WIN      // 1-0
+  BLACK_WIN      // 0-1
+  DRAW           // 1/2
+  WHITE_FORFEIT  // 0-1F  (Trắng bị xử thua / bỏ cuộc)
+  BLACK_FORFEIT  // 1-0F  (Đen bị xử thua / bỏ cuộc)
+  DOUBLE_FORFEIT // 0-0F  (cả hai vắng mặt)
+  BYE            // miễn đấu
+}
+
+enum AuditAction {
+  ENTER_RESULT      // trọng tài ghi nhập tỷ số
+  CONFIRM_WHITE     // kỳ thủ Trắng xác nhận trên máy trọng tài
+  CONFIRM_BLACK
+  DISPUTE           // một bên bấm "Không đồng ý"
+  REQUEST_EXCEPTION // trọng tài ghi yêu cầu TTKT duyệt ngoại lệ (kèm lý do)
+  APPROVE_EXCEPTION // TTKT duyệt ngoại lệ -> OFFICIAL
+  EDIT_RESULT
+  REOPEN
+}
+
+model User {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  auditLogs    AuditLog[]
+  enteredMatches Match[]  @relation("EnteredBy")
+  importLogs   ImportLog[]
+}
+
+model Tournament {
+  id           String    @id @default(cuid())
+  name         String
+  startDate    DateTime?
+  endDate      DateTime?
+  location     String?
+  organizer    String?
+  totalRounds  Int
+  logoUrl      String?
+  primaryColor String    @default("#38bdf8") // màu nhận diện, mặc định sky blue nhạt
+  timezone     String    @default("Asia/Ho_Chi_Minh")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  players      Player[]
+  rounds       Round[]
+  importLogs   ImportLog[]
+}
+
+model Player {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  // STT (SNo) trong file bốc thăm .xls — khóa dùng khi xuất XML <Result PlayerWhiteSNo=...>.
+  // Khác PlayerUniqueId của file XML danh sách.
+  startNo      Int?
+  uniqueId     String?    // PlayerUniqueId từ XML Swiss-Manager (tùy chọn)
+  lastName     String?
+  firstName    String?
+  fullName     String     // dạng "Họ Tên" như trong file .xls, dùng để tra cứu / khớp
+  club         String?
+  federation   String?
+  rating       Int?
+  whiteMatches Match[]    @relation("White")
+  blackMatches Match[]    @relation("Black")
+
+  @@unique([tournamentId, startNo])
+  @@unique([tournamentId, uniqueId])
+  @@index([tournamentId, fullName])
+}
+
+model Round {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  number       Int
+  sourceFile   String?    // tên file .xls đã nhập
+  importedAt   DateTime   @default(now())
+  matches      Match[]
+
+  @@unique([tournamentId, number])
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  roundId       String
+  round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  board         Int
+  whitePlayerId String
+  whitePlayer   Player      @relation("White", fields: [whitePlayerId], references: [id])
+  blackPlayerId String?     // null khi BYE
+  blackPlayer   Player?     @relation("Black", fields: [blackPlayerId], references: [id])
+  whitePoints   Float?      // điểm trước vòng, lấy từ cột "Điểm" của file bốc thăm
+  blackPoints   Float?
+  status        MatchStatus @default(PENDING_RESULT)
+  exceptionReason String?   // trọng tài ghi yêu cầu TTKT duyệt ngoại lệ; null = không có yêu cầu
+  result        ResultType?
+  resultVersion Int         @default(0) // tăng khi nhập/sửa/mở lại; không tăng khi kỳ thủ xác nhận
+  whiteConfirmedAt DateTime?
+  blackConfirmedAt DateTime?
+  enteredById   String?
+  enteredBy     User?       @relation("EnteredBy", fields: [enteredById], references: [id])
+  enteredAt     DateTime?
+  updatedAt     DateTime    @updatedAt
+  auditLogs     AuditLog[]
+
+  @@unique([roundId, board])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  // Nullable chỉ cho log mồ côi đã mất matchId trước migration; log mới luôn điền đủ.
+  tournamentId String?
+  roundNumber Int?
+  board       Int?
+  // null khi ván bị xóa do nhập lại bốc thăm (bản chụp ván cũ nằm ở ImportLog.replaced)
+  matchId   String?
+  match     Match?      @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  userId    String      // trọng tài thao tác
+  user      User        @relation(fields: [userId], references: [id])
+  action    AuditAction
+  oldValue  String?     // JSON snapshot {status, result, ...}
+  newValue  String?
+  reason    String?
+  // id thao tác do điện thoại sinh ra: gửi lại sau khi mất mạng không bị ghi 2 lần
+  clientOpId String?    @unique
+  createdAt DateTime    @default(now()) // UTC, hiển thị theo Asia/Ho_Chi_Minh
+
+  @@index([matchId, createdAt])
+  @@index([tournamentId, createdAt])
+}
+
+enum ImportKind {
+  PLAYERS // XML danh sách kỳ thủ
+  PAIRING // .xls/.xlsx bốc thăm 1 vòng
+}
+
+model ImportLog {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  kind         ImportKind
+  fileName     String
+  roundNumber  Int?
+  rowCount     Int
+  replaced     String?    // JSON các ván cũ bị ghi đè (kèm kết quả) để không mất dữ liệu
+  createdAt    DateTime   @default(now()) // UTC, hiển thị theo Tournament.timezone
+
+  @@index([tournamentId, createdAt])
+}

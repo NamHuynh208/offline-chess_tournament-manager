@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Players>
+  <Player PlayerUniqueId="1" Lastname="Nguyễn" Firstname="Hồng Phúc (B)" Federation="VIE" Rating="0" Gender="m" Club="UIT" />
+  <Player PlayerUniqueId="2" Lastname="Bạch" Firstname="Triều Vĩ" Federation="VIE" Rating="0" Gender="m" Club="IUC" />
+  <Player PlayerUniqueId="3" Lastname="Bùi" Firstname="Minh Duy" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="4" Lastname="Nguyễn" Firstname="Khắc Nhẫn" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="5" Lastname="Nguyễn" Firstname="Lê Minh Hiếu" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="6" Lastname="Bùi" Firstname="Trần Thành Đạt" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="7" Lastname="Cao" Firstname="Hoàng Huy" Federation="VIE" Rating="0" Gender="m" Club="SGU" />
+  <Player PlayerUniqueId="8" Lastname="Nguyễn" Firstname="Lê Ngọc Quý" Federation="VIE" Rating="0" Gender="m" Club="USC" />
+  <Player PlayerUniqueId="9" Lastname="Nguyễn" Firstname="Lê Nhật Quang" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="10" Lastname="Đào" Firstname="Anh Minh" Federation="VIE" Rating="0" Gender="m" Club="ICC" />
+  <Player PlayerUniqueId="11" Lastname="Đoàn" Firstname="Vinh Quang" Federation="VIE" Rating="0" Gender="m" Club="FPT" />
+  <Player PlayerUniqueId="12" Lastname="Nguyễn" Firstname="Nam Việt" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="13" Lastname="Nguyễn" Firstname="Ngọc Thanh Nguyên" Federation="VIE" Rating="0" Gender="m" Club="ICC" />
+  <Player PlayerUniqueId="14" Lastname="Dương" Firstname="Đăng Toàn" Federation="VIE" Rating="0" Gender="m" Club="ICC" />
+  <Player PlayerUniqueId="15" Lastname="Dương" Firstname="Tấn Tài" Federation="VIE" Rating="0" Gender="m" Club="SGU" />
+  <Player PlayerUniqueId="16" Lastname="Nguyễn" Firstname="Ngọc Trí" Federation="VIE" Rating="0" Gender="m" Club="IUC" />
+  <Player PlayerUniqueId="17" Lastname="Nguyễn" Firstname="Nhật Khang" Federation="VIE" Rating="0" Gender="m" Club="FPT" />
+  <Player PlayerUniqueId="18" Lastname="Hà" Firstname="Thúc Nhật Thành" Federation="VIE" Rating="0" Gender="m" Club="FPT" />
+  <Player PlayerUniqueId="19" Lastname="Hoàng" Firstname="Gia Huy" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="20" Lastname="Nguyễn" Firstname="Nhật Trường" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="21" Lastname="Nguyễn" Firstname="Như Tuấn Long" Federation="VIE" Rating="0" Gender="m" Club="VSG" />
+  <Player PlayerUniqueId="22" Lastname="Hoàng" Firstname="Việt Anh" Federation="VIE" Rating="0" Gender="m" Club="NHH" />
+  <Player PlayerUniqueId="23" Lastname="Huỳnh" Firstname="Đoàn Quang Mạnh" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="24" Lastname="Nguyễn" Firstname="Phi Khanh" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="25" Lastname="Nguyễn" Firstname="Phúc An" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="26" Lastname="Huỳnh" Firstname="Khánh Lâm" Federation="VIE" Rating="0" Gender="m" Club="LHP" />
+  <Player PlayerUniqueId="27" Lastname="Huỳnh" Firstname="Vũ Gia An" Federation="VIE" Rating="0" Gender="m" Club="HHT" />
+  <Player PlayerUniqueId="28" Lastname="Nguyễn" Firstname="Phương Nam" Federation="VIE" Rating="0" Gender="m" Club="USH" />
+  <Player PlayerUniqueId="29" Lastname="Nguyễn" Firstname="Thanh Hưng" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="30" Lastname="Khổng" Firstname="Tuấn Hòa" Federation="VIE" Rating="0" Gender="m" Club="SGU" />
+  <Player PlayerUniqueId="31" Lastname="Lê" Firstname="Anh Đăng" Federation="VIE" Rating="0" Gender="m" Club="HCC" />
+  <Player PlayerUniqueId="32" Lastname="Nguyễn" Firstname="Thanh Tình" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="33" Lastname="Nguyễn" Firstname="Thọ Thảo" Federation="VIE" Rating="0" Gender="m" Club="USC" />
+  <Player PlayerUniqueId="34" Lastname="Lê" Firstname="Anh Khôi" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="35" Lastname="Lê" Firstname="Bá Hào" Federation="VIE" Rating="0" Gender="m" Club="SGU" />
+  <Player PlayerUniqueId="36" Lastname="Nguyễn" Firstname="Trần Đức Anh" Federation="VIE" Rating="0" Gender="m" Club="FPT" />
+  <Player PlayerUniqueId="37" Lastname="Phạm" Firstname="Đức Khiêm" Federation="VIE" Rating="0" Gender="m" Club="TDU" />
+  <Player PlayerUniqueId="38" Lastname="Lê" Firstname="Đình Bảo Khang" Federation="VIE" Rating="0" Gender="m" Club="NCT" />
+  <Player PlayerUniqueId="39" Lastname="Lê" Firstname="Gia Bảo" Federation="VIE" Rating="0" Gender="m" Club="USC" />
+  <Player PlayerUniqueId="40" Lastname="Phạm" Firstname="Dương Hoàng Phúc" Federation="VIE" Rating="0" Gender="m" Club="FPT" />
+  <Player PlayerUniqueId="41" Lastname="Phạm" Firstname="Gia Hân" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="42" Lastname="Lê" Firstname="Gia Long" Federation="VIE" Rating="0" Gender="m" Club="FPT" />
+  <Player PlayerUniqueId="43" Lastname="Lê" Firstname="Minh Nhật" Federation="VIE" Rating="0" Gender="m" Club="LHP" />
+  <Player PlayerUniqueId="44" Lastname="Phạm" Firstname="Ngọc Hoạt" Federation="VIE" Rating="0" Gender="m" Club="ICC" />
+  <Player PlayerUniqueId="45" Lastname="Phạm" Firstname="Nguyễn Duy Anh" Federation="VIE" Rating="0" Gender="m" Club="UIT" />
+  <Player PlayerUniqueId="46" Lastname="Lê" Firstname="Ngọc Hiếu" Federation="VIE" Rating="0" Gender="m" Club="USH" />
+  <Player PlayerUniqueId="47" Lastname="Lê" Firstname="Nhật Minh" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="48" Lastname="Phạm" Firstname="Phú Trọng" Federation="VIE" Rating="0" Gender="m" Club="VSG" />
+  <Player PlayerUniqueId="49" Lastname="Thái" Firstname="Ngọc Tường Minh" Federation="VIE" Rating="0" Gender="m" Club="CNK" />
+  <Player PlayerUniqueId="50" Lastname="Lê" Firstname="Trần Đình Lai" Federation="VIE" Rating="0" Gender="m" Club="USH" />
+  <Player PlayerUniqueId="51" Lastname="Lương" Firstname="Quốc Triệu" Federation="VIE" Rating="0" Gender="m" Club="FPT" />
+  <Player PlayerUniqueId="52" Lastname="Thái" Firstname="Quốc Mạnh" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="53" Lastname="Trà" Firstname="Văn Khoa" Federation="VIE" Rating="0" Gender="m" Club="HHT" />
+  <Player PlayerUniqueId="54" Lastname="Lưu" Firstname="Hương Cường Thịnh" Federation="VIE" Rating="0" Gender="m" Club="USH" />
+  <Player PlayerUniqueId="55" Lastname="Mai" Firstname="Tiến Dũng" Federation="VIE" Rating="0" Gender="m" Club="NHH" />
+  <Player PlayerUniqueId="56" Lastname="Trần" Firstname="Đặng Gia Phước" Federation="VIE" Rating="0" Gender="m" Club="LHP" />
+  <Player PlayerUniqueId="57" Lastname="Trần" Firstname="Hồng Anh" Federation="VIE" Rating="0" Gender="m" Club="ICC" />
+  <Player PlayerUniqueId="58" Lastname="Mai" Firstname="Tử Khang" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="59" Lastname="Nguyễn" Firstname="Anh Khoa" Federation="VIE" Rating="0" Gender="m" Club="CNK" />
+  <Player PlayerUniqueId="60" Lastname="Trần" Firstname="Khôi" Federation="VIE" Rating="0" Gender="m" Club="VSG" />
+  <Player PlayerUniqueId="61" Lastname="Trần" Firstname="Khôi Nguyên" Federation="VIE" Rating="0" Gender="m" Club="USC" />
+  <Player PlayerUniqueId="62" Lastname="Nguyễn" Firstname="Đăng Khoa" Federation="VIE" Rating="0" Gender="m" Club="BKU" />
+  <Player PlayerUniqueId="63" Lastname="Nguyễn" Firstname="Đăng Nam" Federation="VIE" Rating="0" Gender="m" Club="SGU" />
+  <Player PlayerUniqueId="64" Lastname="Trần" Firstname="Nguyễn Khánh Nhân" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="65" Lastname="Trần" Firstname="Như Thiện" Federation="VIE" Rating="0" Gender="m" Club="ICC" />
+  <Player PlayerUniqueId="66" Lastname="Nguyễn" Firstname="Đình Đức Tú" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="67" Lastname="Nguyễn" Firstname="Đình Huy Hoàng" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="68" Lastname="Trần" Firstname="Quang Đạt" Federation="VIE" Rating="0" Gender="m" Club="CNK" />
+  <Player PlayerUniqueId="69" Lastname="Trần" Firstname="Thiên Bảo" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="70" Lastname="Nguyễn" Firstname="Đình Ngọc Ân" Federation="VIE" Rating="0" Gender="m" Club="FPT" />
+  <Player PlayerUniqueId="71" Lastname="Nguyễn" Firstname="Đức Anh Tuấn" Federation="VIE" Rating="0" Gender="m" Club="BKU" />
+  <Player PlayerUniqueId="72" Lastname="Trần" Firstname="Văn Bình" Federation="VIE" Rating="0" Gender="m" Club="TDO" />
+  <Player PlayerUniqueId="73" Lastname="Trần" Firstname="Văn Dũng" Federation="VIE" Rating="0" Gender="m" Club="BKU" />
+  <Player PlayerUniqueId="74" Lastname="Nguyễn" Firstname="Đức Gia Hưng" Federation="VIE" Rating="0" Gender="m" Club="VSG" />
+  <Player PlayerUniqueId="75" Lastname="Nguyễn" Firstname="Đức Sang" Federation="VIE" Rating="0" Gender="m" Club="IUC" />
+  <Player PlayerUniqueId="76" Lastname="Từ" Firstname="Huy Bình" Federation="VIE" Rating="0" Gender="m" Club="SGU" />
+  <Player PlayerUniqueId="77" Lastname="Văn" Firstname="Huy Tài" Federation="VIE" Rating="0" Gender="m" Club="FPT" />
+  <Player PlayerUniqueId="78" Lastname="Nguyễn" Firstname="Hải Tiến Công" Federation="VIE" Rating="0" Gender="m" Club="TDU" />
+  <Player PlayerUniqueId="79" Lastname="Nguyễn" Firstname="Hồng Phúc (A)" Federation="VIE" Rating="0" Gender="m" Club="TDU" />
+  <Player PlayerUniqueId="80" Lastname="Võ" Firstname="Phạm Thiên Phúc" Federation="VIE" Rating="0" Gender="m" Club="IUC" />
+</Players>

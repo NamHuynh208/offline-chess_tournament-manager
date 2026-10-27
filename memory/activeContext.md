@@ -1,0 +1,32 @@
+> Cập nhật: 2026-10-27
+
+- Vừa xong: cấu hình Ubuntu deploy PM2/Nginx và script deploy.sh, README hướng dẫn HTTPS/DB/seed/reboot; không thực hiện triển khai server.
+- GitHub: đã tạo repo private https://github.com/NamHuynh208/uscc-tournament-manager, remote origin HTTPS, nhánh master; commit/push toàn bộ source hiện tại, loại .env/DB/cache/report/archive/.claude. Xác thực Git Credential Manager, không ghi token vào repo/memory.
+- Đóng gói source thành `giaidau-deploy.tar.gz` để chuyển VM; loại node_modules/.next/.git/report, .env thật, DB local, cache TypeScript, .claude và chính archive; giữ .env.example/migrations/deploy configs. Chưa upload vì chưa có địa chỉ/SSH VM.
+- Quyết định:
+  - State machine thuần `src/lib/match-state.ts` dùng chung server + client: client áp thao tác lạc quan, server kiểm lại.
+  - Mọi thao tác đi qua hàng đợi (`src/lib/offline-queue.ts`, localStorage theo userId) rồi gửi ngay; lỗi mạng/5xx -> giữ lại, 409 -> đánh dấu lỗi, trọng tài "Bỏ thao tác này" (bỏ luôn các thao tác sau của cùng ván).
+  - Chống ghi 2 lần: `AuditLog.clientOpId` unique và kiểm user/match khi replay. Chống 2 máy ghi đè: updateMany theo `updatedAt` + `resultVersion`.
+  - `whiteConfirmedAt/blackConfirmedAt` = giờ server nhận; giờ bấm thật trên máy nằm ở `clientAt` trong AuditLog.newValue.
+  - "Không đồng ý" phải chạm 2 lần (chống bấm nhầm) — bổ sung ngoài PRD.
+  - Yêu cầu duyệt ngoại lệ: lưu `Match.exceptionReason` + AuditLog REQUEST_EXCEPTION, không đổi trạng thái.
+  - Điểm trước vòng lấy từ cột "Điểm" file .xls (`Match.whitePoints/blackPoints`).
+  - Trọng tài ghi không sửa được ván DISPUTED/OFFICIAL (chỉ TTKT).
+- Migration `recorder_flow` tạo bằng `prisma migrate diff` + `migrate deploy` vì `migrate dev` đòi xác nhận khi chạy non-interactive.
+- DB dev có 1 giải demo (đã nhập 2 file samples, chưa có kết quả).
+- TTKT đăng nhập được chuyển tới `/technical`; trọng tài ghi vẫn tới `/record`.
+- Polling dùng chung `useLiveTournament`: không chồng request, timeout 4 giây, giữ dữ liệu và thời điểm thành công cuối khi mất mạng. API live chỉ dành TTKT; payload projector xóa tỷ số chưa OFFICIAL.
+- Thao tác TTKT online bắt buộc lý do + `expectedUpdatedAt`; transaction cũ ghi Match/AuditLog đồng thời. Hủy dùng EDIT_RESULT với `operation=CANCEL_RESULT`, trạng thái REOPENED và result=null (không thêm enum/migration).
+- Sửa kết quả chọn xác nhận lại hoặc ngoại lệ ngay; audit lưu mode/operation và snapshot trước/sau. Modal dùng dialog native để khóa focus và hỗ trợ Escape.
+- Kiểm tra cuối: npm test (19), TypeScript, lint và production build PASS. `npm run test:acceptance`: 15 PASS, 0 skip/failed/flaky, gồm đủ 10 tiêu chí + hồi quy 409 offline, audit re-import, import TOCTOU UI/API/transaction, export status 400.
+- Chromium thật: tra đủ 40 bàn/80 phía kỳ thủ ở 390x844, kiosk xác nhận/bất đồng; projector 1920x1080, phân quyền/mất mạng/carousel/điểm; cập nhật đo 2422ms trên localhost (không bảo đảm mạng LAN thực).
+- File XLS mẫu vòng 2, XML mẫu vòng 1: test 9 import override round=1 và so byte HTTP xuất XML nguyên vẹn; Excel kiểm sheet/cột/40 dòng và đối soát.
+- Đã sửa: form cấu hình đầy đủ + update state ngay và projector polling; `resultVersion` lưu vào localStorage, thiếu/cũ trả 409; thoát kiosk và bắt kiểm tra lại khi bị từ chối; AuditLog lưu giải/vòng/bàn trực tiếp; HMAC previewToken và transaction Serializable chống import cũ; `Object.hasOwn` chặn prototype export status.
+- Migration `20261027180000_result_version_audit_context` đã tạo, generate client và migrate deploy trên DB dev. Backfill audit còn liên kết ván; log mất matchId từ trước migration không suy luận giải cũ, giữ nguyên nullable (không xóa/không gán bừa).
+- Tương thích: client/API cũ thiếu expectedVersion hoặc previewToken sẽ nhận 409 an toàn; cần tải lại web, kiểm tra lại thao tác cũ trong queue / chạy lại Preview.
+- Contrast dùng `src/lib/colors.ts` WCAG >=4.5:1; projector tỷ số trên nền màu giải với chữ đen/trắng, test 4096 màu.
+- `npm audit`: 5 cảnh báo (4 high, 1 moderate) theo dependency chain Prisma/deepmerge-ts và Next/PostCSS; chưa nâng major tự động.
+- Deployment: `ecosystem.config.js` uscc-giaidau 1 fork, Next loopback 127.0.0.1:3005; Nginx giaidau.namprojects.site, buffering/cache/gzip off, timeout 86400s, body 20M, Upgrade WebSocket.
+- `deploy.sh [--pull]`: Node>=22, env .env duy nhất/secret không commit, SQLite absolute path ngoài repo, flock, pull ff-only, stop PM2, SQLite .backup, npm ci/include dev + generate/migrate/build, PM2 startOrReload/healthcheck/save. Downtime được ghi rõ, không tự rollback DB/seed/xóa backup.
+- Cookie production Secure bắt buộc HTTPS (README Certbot); app upload vẫn 5 MiB, Nginx 20 MiB chỉ là giới hạn request.
+- Kiểm deploy config bằng assert + lint; Bash/Nginx syntax và triển khai Ubuntu chưa chạy vì Windows không có Bash/Nginx, Docker daemon không hoạt động.

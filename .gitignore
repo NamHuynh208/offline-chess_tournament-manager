@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/.deploy.lock
+/giaidau-deploy.tar.gz
 
 # next.js
 /.next/
@@ -39,3 +43,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# allow example env
+!.env.example
+
+# sqlite
+/prisma/*.db
+/prisma/*.db-journal
+/prisma/*.db-wal
+/prisma/*.db-shm
+/shadow.db
+/shadow.db-*
+/.claude/
