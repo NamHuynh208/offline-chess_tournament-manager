@@ -9,6 +9,7 @@ import type { ClientMatch } from "../../src/lib/matches";
 import { planPairing, planPlayers, ImportConflict } from "../../src/lib/imports";
 import { prisma } from "../../src/lib/db";
 import { parsePairingSheet, parsePlayersXml } from "../../src/lib/swiss-manager";
+import bcrypt from "bcryptjs";
 
 if (!process.env.TEST_DATABASE_URL?.includes("uscc-acceptance-") || !process.env.TEST_BASE_URL || !process.env.TEST_PASSWORD) {
   throw new Error("Chạy npm run test:acceptance để dùng DB/server tạm an toàn");
@@ -27,7 +28,12 @@ const sheet = (rows: unknown[][]) => {
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 };
 const header = ["Bàn", "STT", "White", "Điểm", "KQ", "Điểm", "Black", "STT"];
-const test = base.extend<{ tech: APIRequestContext; recorder: APIRequestContext; tid: string }>({
+const test = base.extend<{ admin: APIRequestContext; tech: APIRequestContext; recorder: APIRequestContext; tid: string }>({
+  admin: async ({ playwright }, provide) => {
+    const api = await playwright.request.newContext({ baseURL: process.env.TEST_BASE_URL });
+    expect((await api.post("/api/auth/login", { data: { username: "test-admin", password: process.env.TEST_PASSWORD } })).ok()).toBeTruthy();
+    await provide(api); await api.dispose();
+  },
   tech: async ({ playwright }, provide) => {
     const api = await playwright.request.newContext({ baseURL: process.env.TEST_BASE_URL });
     expect((await api.post("/api/auth/login", { data: { username: "test-tech", password: process.env.TEST_PASSWORD } })).ok()).toBeTruthy();
@@ -79,9 +85,20 @@ async function loginPage(page: Page, api: APIRequestContext, path: string) {
 test("00 — DB trống: tạo giải đầu tiên/thứ hai, tự chọn giải mới, chuyển giải TTKT và trọng tài ghi", async ({ page, tech, recorder }) => {
   expect(await db.tournament.count()).toBe(0); // runner tạo DB test sạch; không xóa dữ liệu của test khác
   await loginPage(page, tech, "/technical");
+  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(245, 245, 247)");
+  await expect(page.locator("header")).toHaveCSS("border-bottom-width", "0px");
+  await expect(page.locator("header")).toHaveCSS("box-shadow", "rgba(0, 0, 0, 0.04) 0px 1px 2px 0px");
   await expect(page.getByRole("button", { name: "Tạo giải đấu đầu tiên", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "+ Tạo giải mới", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Tạo giải đấu mới", exact: true });
+  await expect(dialog).toHaveCSS("border-top-width", "0px");
+  await expect(dialog).toHaveCSS("box-shadow", "rgba(0, 0, 0, 0.04) 0px 2px 12px 0px");
+  const colorPicker = dialog.getByLabel("Màu sắc nhận diện", { exact: true });
+  await expect(colorPicker).toHaveCSS("border-color", "rgb(229, 229, 234)");
+  await colorPicker.focus();
+  await expect(colorPicker).toHaveCSS("outline-style", "none");
+  await expect(colorPicker).toHaveCSS("border-color", "rgb(14, 165, 233)");
+  await expect(colorPicker).toHaveCSS("box-shadow", "rgba(14, 165, 233, 0.15) 0px 0px 0px 3px");
   await dialog.getByRole("textbox", { name: "Tên giải", exact: true }).fill("USCC Open");
   await dialog.getByLabel(/Bắt đầu/).fill("2020-01-01T08:00");
   await dialog.getByLabel("Địa điểm", { exact: true }).fill("CLB USCC");
@@ -96,6 +113,10 @@ test("00 — DB trống: tạo giải đầu tiên/thứ hai, tự chọn giải
   await expect(page.getByRole("combobox", { name: "Giải đấu" })).toHaveValue(first.id);
   await expect(page.getByRole("heading", { name: "Nhập bốc thăm", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "USCC Open", exact: true })).toBeVisible();
+  for (const card of await page.locator("section.app-card").all()) {
+    await expect(card).toHaveCSS("border-top-width", "0px");
+    await expect(card).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  }
   await expect(page.locator("header p")).toHaveText("TTKT kiểm thử");
   const controls = page.getByRole("group", { name: "Quản lý giải đấu", exact: true });
   const boxes = await controls.locator("select, button").evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return { height: r.height, bottom: r.bottom }; }));
@@ -129,6 +150,10 @@ test("00 — DB trống: tạo giải đầu tiên/thứ hai, tự chọn giải
   await expect(page.getByRole("combobox", { name: "Giải đấu" })).toHaveValue(second.id);
   await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(first.id);
   await expect(page.getByRole("button").filter({ has: page.getByText("Bàn 1", { exact: true }) })).toBeVisible();
+  const matchCard = page.getByRole("button").filter({ has: page.getByText("Bàn 1", { exact: true }) });
+  await expect(matchCard).toHaveCSS("border-top-width", "0px");
+  await expect(matchCard).toHaveCSS("box-shadow", "rgba(0, 0, 0, 0.04) 0px 2px 12px 0px");
+  await expect(page.locator("header")).toHaveCSS("border-bottom-width", "0px");
   await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(second.id);
   await expect(page.getByRole("button").filter({ has: page.getByText("Bàn 1", { exact: true }) })).toHaveCount(0);
   await expect(page.getByText("Chưa có vòng đấu nào được nhập.", { exact: true })).toBeVisible();
@@ -365,7 +390,7 @@ test("08 — BYE không có Đen/xác nhận giả; đặc biệt hiển thị �
   for (const [i, score] of ["0 - 1F", "1 - 0F", "0 - 0F"].entries()) await expect(page.locator("tbody tr").filter({ hasText: ms[i].white.fullName })).toContainText(score);
 });
 
-test("09 — XML HTTP khớp từng byte mẫu; Excel đúng sheet, cột, dữ liệu chính thức/đối soát", async ({ tech, recorder, tid }) => {
+test("09 — Xuất XML/Excel qua UI thật: đúng vòng/toàn giải, byte mẫu và sheet chính thức/đối soát", async ({ page, tech, recorder, tid }) => {
   // Dataset thường ở vòng 2; riêng xuất XML dùng round=1 như file kỳ vọng.
   // Không sửa byte nào của file XML kỳ vọng để che sai khác dữ liệu fixture.
   await upload(tech, tid, "pairing", pairingFile, "commit", "pairing.xls", { round: "1" });
@@ -376,6 +401,32 @@ test("09 — XML HTTP khớp từng byte mẫu; Excel đúng sheet, cột, dữ 
   }
   const xml = await tech.get(`/api/tournaments/${tid}/rounds/1/export-xml`);
   expect(xml.headers()["content-type"]).toContain("application/xml"); expect(await xml.body()).toEqual(resultsFile);
+  await loginPage(page, tech, "/technical"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  const exports = page.getByRole("region", { name: "Xuất kết quả", exact: true });
+  async function download(name: string, filename: string) {
+    const event = page.waitForEvent("download");
+    await exports.getByRole("link", { name, exact: true }).click();
+    const file = await event;
+    expect(await file.failure()).toBeNull(); expect(file.suggestedFilename()).toBe(filename);
+    return { bytes: readFileSync((await file.path())!), url: new URL(file.url()) };
+  }
+  await expect(exports.getByRole("combobox", { name: "Vòng", exact: true })).toHaveValue("0");
+  await expect(exports.getByRole("link", { name: "Xuất XML Vòng 1", exact: true })).toBeVisible();
+  await expect(exports.getByRole("link", { name: "Xuất XML Vòng 2", exact: true })).toBeVisible();
+  expect((await download("Xuất XML Vòng 1", "KetQua_Van1.xml")).bytes).toEqual(resultsFile);
+  const roundTwo = await download("Xuất XML Vòng 2", "KetQua_Van2.xml");
+  expect(roundTwo.url.pathname).toBe(`/api/tournaments/${tid}/rounds/2/export-xml`);
+  expect(roundTwo.bytes.toString()).not.toContain("<Result Round="); // vòng 2 chưa có OFFICIAL
+  const allExcel = await download("Xuất Excel (.xlsx)", "KetQua_ToanGiai.xlsx");
+  expect(allExcel.url.searchParams.has("round")).toBe(false); expect(allExcel.url.searchParams.has("status")).toBe(false);
+  const allWorkbook = XLSX.read(allExcel.bytes); expect(allWorkbook.SheetNames).toEqual(["Chính thức"]);
+  expect(XLSX.utils.sheet_to_json(allWorkbook.Sheets["Chính thức"], { header: 1 })).toHaveLength(46);
+  await exports.getByRole("combobox", { name: "Vòng", exact: true }).selectOption("1");
+  await expect(exports.getByRole("link", { name: "Xuất XML Vòng 2", exact: true })).toHaveCount(0);
+  expect((await download("Xuất XML Swiss-Manager (Vòng 1)", "KetQua_Van1.xml")).bytes).toEqual(resultsFile);
+  const selectedExcel = await download("Xuất Excel (.xlsx)", "KetQua_Van1.xlsx");
+  expect(selectedExcel.url.searchParams.get("round")).toBe("1");
+  expect(XLSX.read(selectedExcel.bytes).SheetNames).toEqual(["Chính thức"]);
   const xlsx = await tech.get(`/api/tournaments/${tid}/export-xlsx?round=1`); expect(xlsx.headers()["content-type"]).toContain("spreadsheetml.sheet");
   const wb = XLSX.read(await xlsx.body()); expect(wb.SheetNames).toEqual(["Chính thức"]);
   const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets["Chính thức"], { header: 1, defval: "" });
@@ -388,6 +439,19 @@ test("09 — XML HTTP khớp từng byte mẫu; Excel đúng sheet, cột, dữ 
   const check = XLSX.read(await (await tech.get(`/api/tournaments/${tid}/export-xlsx?round=1&status=OFFICIAL,AWAITING_CONFIRMATION,DISPUTED`)).body());
   expect(check.SheetNames).toEqual(["Chính thức", "Chờ xác nhận", "Có bất đồng"]);
   for (const [name, count] of [["Chính thức", 38], ["Chờ xác nhận", 1], ["Có bất đồng", 1]] as const) expect(XLSX.utils.sheet_to_json(check.Sheets[name], { header: 1 })).toHaveLength(6 + count);
+  await exports.getByRole("combobox", { name: "Nội dung Excel", exact: true }).selectOption("reconcile");
+  const reconciliation = await download("Xuất Excel (.xlsx)", "KetQua_Van1.xlsx");
+  expect(reconciliation.url.searchParams.get("status")).toBe("OFFICIAL,AWAITING_CONFIRMATION,DISPUTED");
+  const reconciliationBook = XLSX.read(reconciliation.bytes);
+  expect(reconciliationBook.SheetNames).toEqual(["Chính thức", "Chờ xác nhận", "Có bất đồng"]);
+  for (const [name, count] of [["Chính thức", 38], ["Chờ xác nhận", 1], ["Có bất đồng", 1]] as const) expect(XLSX.utils.sheet_to_json(reconciliationBook.Sheets[name], { header: 1 })).toHaveLength(6 + count);
+  await page.getByRole("button", { name: "Lịch sử toàn giải", exact: true }).click();
+  await exports.getByRole("combobox", { name: "Vòng", exact: true }).selectOption("0");
+  expect((await download("Xuất Excel (.xlsx)", "KetQua_ToanGiai.xlsx")).url.searchParams.has("round")).toBe(false);
+  await exports.getByRole("combobox", { name: "Nội dung Excel", exact: true }).selectOption("official");
+  const officialOnly = XLSX.read((await download("Xuất Excel (.xlsx)", "KetQua_ToanGiai.xlsx")).bytes);
+  expect(officialOnly.SheetNames).toEqual(["Chính thức"]);
+  expect(XLSX.utils.sheet_to_json(officialOnly.Sheets["Chính thức"], { header: 1 })).toHaveLength(44);
 });
 
 test("10 — Đổi tên, logo, màu trực tiếp trên giao diện và lưu sau reload", async ({ page, tech, tid }) => {
@@ -584,4 +648,242 @@ test("16 — Tùy chọn TTKT duyệt: đủ 2 xác nhận vẫn chờ, duyệt 
   await projector.close();
   const created = await tech.post("/api/tournaments", { data: { name: "Giải duyệt từ đầu", totalRounds: 7, requireTechnicalApproval: true } });
   expect(created.status()).toBe(201); expect((await created.json()).requireTechnicalApproval).toBe(true);
+});
+
+test("17 — Projector Light: 40+ bàn vừa laptop, tỉ lệ/zoom/cột/trang, cuộn tùy chọn và lưu cấu hình", async ({ page, tech, tid }, info) => {
+  await loginPage(page, tech, `/projector/${tid}`);
+  await expect(page.getByRole("status")).toContainText("Đã đồng bộ");
+  await page.getByRole("checkbox", { name: "Tự động lật trang" }).uncheck();
+  await page.getByRole("combobox", { name: "Chia trang theo", exact: true }).selectOption("pages");
+  await page.getByRole("combobox", { name: "Số trang muốn chia", exact: true }).selectOption("1");
+  const rows = page.locator("tbody tr");
+  await expect(rows).toHaveCount(40);
+  async function assertFits(count: number) {
+    await expect(rows).toHaveCount(count);
+    await expect.poll(() => page.evaluate(() => {
+      const frame = document.querySelector('[data-testid="projector-frame"]')!.getBoundingClientRect();
+      const area = document.querySelector('[data-testid="projector-boards"]')!.getBoundingClientRect();
+      const footer = document.querySelector(".projector footer")!.getBoundingClientRect();
+      const all = [...document.querySelectorAll("tbody tr")].map((r) => r.getBoundingClientRect());
+      return frame.left >= -1 && frame.right <= innerWidth + 1 && frame.bottom <= innerHeight + 1 && footer.bottom <= innerHeight + 1 && all.every((r) => r.top >= area.top - 1 && r.bottom <= area.bottom + 1 && r.height > 0) && document.documentElement.scrollHeight <= innerHeight;
+    })).toBe(true);
+  }
+  await expect(page.getByTestId("projector-frame")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.locator("main")).toHaveCSS("color", "rgb(29, 29, 31)");
+  expect(await page.locator("body").evaluate((b) => getComputedStyle(b).fontFamily)).toContain("-apple-system");
+  for (const [width, height] of [[1366, 768], [1280, 800], [1024, 768], [1440, 900]]) {
+    await page.setViewportSize({ width, height });
+    for (const cols of ["1", "2", "4"]) {
+      await page.getByRole("combobox", { name: "Số cột", exact: true }).selectOption(cols);
+      await page.getByRole("combobox", { name: "Cỡ hiển thị", exact: true }).selectOption("125");
+      await assertFits(40);
+    }
+  }
+  for (const [aspect, ratio] of [["16:9", 16 / 9], ["16:10", 16 / 10], ["4:3", 4 / 3]] as const) {
+    await page.getByRole("combobox", { name: "Tỉ lệ khung hình", exact: true }).selectOption(aspect);
+    await assertFits(40);
+    await expect.poll(async () => { const r = await page.getByTestId("projector-frame").boundingBox(); return Math.abs(r!.width / r!.height - ratio); }).toBeLessThan(0.01);
+  }
+  await page.getByRole("combobox", { name: "Tỉ lệ khung hình", exact: true }).selectOption("auto");
+  await page.getByRole("combobox", { name: "Số cột", exact: true }).selectOption("1");
+  await page.getByRole("checkbox", { name: "Cho phép cuộn dọc (giữ chữ lớn)", exact: true }).check();
+  await expect.poll(() => page.getByTestId("projector-boards").evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  await rows.last().scrollIntoViewIfNeeded();
+  const last = await rows.last().boundingBox(); const area = await page.getByTestId("projector-boards").boundingBox(); expect(last!.y + last!.height).toBeLessThanOrEqual(area!.y + area!.height + 1);
+  await page.getByRole("checkbox", { name: "Cho phép cuộn dọc (giữ chữ lớn)", exact: true }).uncheck();
+  await page.getByRole("combobox", { name: "Số trang muốn chia", exact: true }).selectOption("3");
+  await page.getByRole("combobox", { name: "Số cột", exact: true }).selectOption("3");
+  const boardNumbers: string[] = [];
+  for (let i = 1; i <= 3; i++) {
+    await page.getByRole("button", { name: `Trang ${i}`, exact: true }).click();
+    boardNumbers.push(...await rows.locator("td:first-child").allTextContents());
+    await assertFits(i === 1 ? 14 : 13);
+  }
+  expect(boardNumbers.map(Number)).toEqual(Array.from({ length: 40 }, (_, i) => i + 1));
+  await page.getByRole("combobox", { name: "Chia trang theo", exact: true }).selectOption("boards");
+  await page.getByRole("combobox", { name: "Số bàn mỗi trang", exact: true }).selectOption("16");
+  await page.getByRole("combobox", { name: "Cỡ hiển thị", exact: true }).selectOption("85");
+  await page.getByRole("combobox", { name: "Tỉ lệ khung hình", exact: true }).selectOption("16:10");
+  await page.getByRole("combobox", { name: "Số giây chuyển trang", exact: true }).selectOption("15");
+  await page.getByRole("button", { name: "Trang 2", exact: true }).click();
+  await page.getByRole("button", { name: "Ẩn thanh điều khiển", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Thiết lập trình chiếu", exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Hiện thanh điều khiển", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Hiện thanh điều khiển", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Số bàn mỗi trang", exact: true })).toHaveValue("16");
+  await expect(page.getByRole("combobox", { name: "Cỡ hiển thị", exact: true })).toHaveValue("85");
+  await expect(page.getByRole("combobox", { name: "Số cột", exact: true })).toHaveValue("3");
+  await expect(page.getByRole("combobox", { name: "Tỉ lệ khung hình", exact: true })).toHaveValue("16:10");
+  await expect(page.getByRole("combobox", { name: "Số giây chuyển trang", exact: true })).toHaveValue("15");
+  await expect(page.getByRole("button", { name: "Trang 2", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await assertFits(16);
+  await page.evaluate((id) => localStorage.setItem(`uscc:projector:${id}`, JSON.stringify({ columns: 999, scale: -10, perPage: 0, seconds: 0 })), tid);
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Số cột", exact: true })).toHaveValue("2");
+  await expect(page.getByRole("combobox", { name: "Cỡ hiển thị", exact: true })).toHaveValue("100");
+  await assertFits(20);
+  await page.getByRole("checkbox", { name: "Tự động lật trang" }).uncheck();
+  for (const scale of ["75", "85", "90", "100", "110", "125"]) {
+    await page.getByRole("combobox", { name: "Cỡ hiển thị", exact: true }).selectOption(scale);
+    await assertFits(20);
+  }
+  await upload(tech, tid, "pairing", sheet([["Ván 2"], header, ...sourceRows, ...[41, 42, 43].map((board, i) => [board, 81 + i * 2, `Kỳ thủ thêm Trắng ${board}`, 0, "", 0, `Kỳ thủ thêm Đen ${board}`, 82 + i * 2])]), "commit", "43-boards.xlsx");
+  await page.getByRole("combobox", { name: "Số bàn mỗi trang", exact: true }).selectOption("40");
+  await assertFits(40);
+  await page.getByRole("button", { name: "Trang 2", exact: true }).click();
+  await expect(rows).toHaveCount(3);
+  await page.getByRole("combobox", { name: "Chia trang theo", exact: true }).selectOption("pages");
+  await page.getByRole("combobox", { name: "Số trang muốn chia", exact: true }).selectOption("1");
+  await page.getByRole("combobox", { name: "Số cột", exact: true }).selectOption("4");
+  await page.getByRole("button", { name: "Ẩn thanh điều khiển", exact: true }).click();
+  await assertFits(43);
+  await page.screenshot({ path: info.outputPath("projector-light-43-boards.png") });
+});
+
+test("18 — Admin quản lý tài khoản; TTKT không có quyền user nhưng giữ quyền giải đấu", async ({ page, admin: tech, tech: technical, recorder, request, playwright }) => {
+  const adminPassword = process.env.TEST_PASSWORD!;
+  const password = `Initial-${randomUUID()}`;
+  const nextPassword = `Changed-${randomUUID()}`;
+  expect((await request.get("/api/users")).status()).toBe(401);
+  expect((await recorder.get("/api/users")).status()).toBe(403);
+  expect((await recorder.post("/api/users", { data: {} })).status()).toBe(403);
+  const forbiddenPage = await recorder.get("/technical/users", { maxRedirects: 0 }); expect(forbiddenPage.headers().location).toBe("/");
+  expect((await technical.get("/api/users")).status()).toBe(403);
+  expect((await technical.post("/api/users", { data: {} })).status()).toBe(403);
+  expect((await technical.patch("/api/users/nonexistent", { data: {} })).status()).toBe(403);
+  const technicalUser = await db.user.findUniqueOrThrow({ where: { username: "test-tech" } });
+  expect((await technical.patch(`/api/users/${technicalUser.id}`, { data: { fullName: technicalUser.fullName, role: "ADMIN", active: true, expectedVersion: technicalUser.sessionVersion, currentPassword: adminPassword } })).status()).toBe(403);
+  expect((await technical.get("/technical/users", { maxRedirects: 0 })).headers().location).toBe("/");
+  await loginPage(page, technical, "/technical");
+  await expect(page.getByRole("link", { name: "Quản lý tài khoản", exact: true })).toHaveCount(0);
+  const body = { username: "api-arbiter", fullName: "API trọng tài", role: "RECORDING_ARBITER", active: true, password, currentPassword: adminPassword };
+  expect((await tech.post("/api/users", { data: { ...body, password: "short" } })).status()).toBe(400);
+  expect((await tech.post("/api/users", { data: { ...body, role: "SUPERADMIN" } })).status()).toBe(400);
+  expect((await tech.post("/api/users", { data: { ...body, currentPassword: "wrong" } })).status()).toBe(403);
+  expect((await tech.post("/api/users", { headers: { origin: "https://untrusted.example" }, data: body })).status()).toBe(403);
+  await loginPage(page, tech, "/technical");
+  await page.getByRole("link", { name: "Quản lý tài khoản", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Quản lý tài khoản trọng tài");
+  await page.getByRole("button", { name: "Tạo tài khoản", exact: true }).click();
+  const createDialog = page.getByRole("dialog", { name: "Tạo tài khoản trọng tài", exact: true });
+  await createDialog.getByLabel("Tên đăng nhập", { exact: true }).fill("ui-arbiter");
+  await createDialog.getByLabel("Họ tên", { exact: true }).fill("Trọng tài bàn UI");
+  await createDialog.getByLabel("Mật khẩu mới", { exact: true }).fill(password);
+  await createDialog.getByLabel("Nhập lại mật khẩu mới", { exact: true }).fill("mismatch");
+  await createDialog.getByLabel("Mật khẩu hiện tại của bạn", { exact: true }).fill(adminPassword);
+  await createDialog.getByRole("button", { name: "Lưu tài khoản", exact: true }).click();
+  await expect(createDialog.getByRole("alert")).toContainText("không khớp");
+  await createDialog.getByLabel("Nhập lại mật khẩu mới", { exact: true }).fill(password);
+  await createDialog.getByRole("button", { name: "Lưu tài khoản", exact: true }).click();
+  await expect(createDialog).toHaveCount(0);
+  const card = page.getByRole("article", { name: "Tài khoản ui-arbiter", exact: true });
+  await expect(card).toContainText("Arbiter — Trọng tài ghi kết quả");
+  let created = await db.user.findUniqueOrThrow({ where: { username: "ui-arbiter" } });
+  expect(created.passwordHash).not.toBe(password); expect(await bcrypt.compare(password, created.passwordHash)).toBe(true);
+  const actor = await db.user.findUniqueOrThrow({ where: { username: "test-admin" } });
+  const logsBefore = await db.auditLog.count({ where: { action: "CREATE_USER" } });
+  expect((await tech.post("/api/users", { data: { ...body, username: "UI-ARBITER" } })).status()).toBe(409);
+  expect(await db.auditLog.count({ where: { action: "CREATE_USER" } })).toBe(logsBefore);
+  const account = await playwright.request.newContext({ baseURL: process.env.TEST_BASE_URL });
+  const backup = await playwright.request.newContext({ baseURL: process.env.TEST_BASE_URL });
+  try {
+    expect((await account.post("/api/auth/login", { data: { username: "ui-arbiter", password } })).status()).toBe(200);
+    expect((await account.get("/api/users")).status()).toBe(403);
+    expect((await account.patch(`/api/users/${created.id}`, { data: {} })).status()).toBe(403);
+    await card.getByRole("button", { name: "Sửa / Đổi mật khẩu", exact: true }).click();
+    const edit = page.getByRole("dialog", { name: "Sửa tài khoản trọng tài", exact: true });
+    await edit.getByLabel("Mật khẩu mới", { exact: true }).fill(nextPassword);
+    await edit.getByLabel("Nhập lại mật khẩu mới", { exact: true }).fill(nextPassword);
+    await edit.getByLabel("Mật khẩu hiện tại của bạn", { exact: true }).fill(adminPassword);
+    await edit.getByRole("button", { name: "Lưu tài khoản", exact: true }).click();
+    await expect(edit).toHaveCount(0);
+    expect((await account.get("/api/tournaments")).status()).toBe(401);
+    expect((await account.post("/api/auth/login", { data: { username: "ui-arbiter", password } })).status()).toBe(401);
+    expect((await account.post("/api/auth/login", { data: { username: "ui-arbiter", password: nextPassword } })).status()).toBe(200);
+    created = await db.user.findUniqueOrThrow({ where: { id: created.id } });
+    // API không trả hash/password và không ghi secret vào audit.
+    const listed = await (await tech.get("/api/users")).json();
+    const publicAccount = listed.users.find((u: { id: string }) => u.id === created.id);
+    expect(publicAccount).not.toHaveProperty("passwordHash"); expect(publicAccount).not.toHaveProperty("password");
+    const changeLog = await db.auditLog.findFirstOrThrow({ where: { action: "CHANGE_PASSWORD" }, orderBy: { createdAt: "desc" } });
+    expect(changeLog.userId).toBe(actor.id); expect(changeLog.newValue).toContain(created.id);
+    for (const secret of [password, nextPassword, created.passwordHash]) expect(JSON.stringify(changeLog)).not.toContain(secret);
+    const save = async (patch: object, status = 200) => { const r = await tech.patch(`/api/users/${created.id}`, { data: { fullName: created.fullName, role: created.role, active: created.active, expectedVersion: created.sessionVersion, currentPassword: adminPassword, ...patch } }); expect(r.status()).toBe(status); if (r.ok()) created = await db.user.findUniqueOrThrow({ where: { id: created.id } }); return r; };
+    const oldVersion = created.sessionVersion;
+    await save({ role: "TECHNICAL_ARBITER", fullName: "TTKT mới" });
+    expect((await account.get("/api/tournaments")).status()).toBe(401);
+    expect((await account.post("/api/auth/login", { data: { username: "ui-arbiter", password: nextPassword } })).status()).toBe(200);
+    expect((await account.get("/api/users")).status()).toBe(403);
+    await save({ expectedVersion: oldVersion, active: false }, 409);
+    await card.getByRole("button", { name: "Sửa / Đổi mật khẩu", exact: true }).click();
+    // Tải lại danh sách vì thay đổi role vừa thực hiện qua API.
+    await edit.getByRole("button", { name: "Hủy", exact: true }).click();
+    await page.getByRole("button", { name: "Tải lại danh sách", exact: true }).click();
+    await expect(card).toContainText("TTKT mới");
+    await card.getByRole("button", { name: "Sửa / Đổi mật khẩu", exact: true }).click();
+    await edit.getByRole("checkbox", { name: "Cho phép đăng nhập (bỏ chọn để khóa)", exact: true }).uncheck();
+    await edit.getByLabel("Mật khẩu hiện tại của bạn", { exact: true }).fill(adminPassword);
+    await edit.getByRole("button", { name: "Lưu tài khoản", exact: true }).click(); await expect(edit).toHaveCount(0);
+    await expect(card).toContainText("Đã khóa");
+    expect((await account.get("/api/tournaments")).status()).toBe(401);
+    expect((await account.post("/api/auth/login", { data: { username: "ui-arbiter", password: nextPassword } })).status()).toBe(401);
+    created = await db.user.findUniqueOrThrow({ where: { id: created.id } });
+    await save({ active: true, role: "RECORDING_ARBITER" });
+    expect((await account.get("/api/tournaments")).status()).toBe(401); // mở khóa không hồi sinh cookie cũ
+    expect((await account.post("/api/auth/login", { data: { username: "ui-arbiter", password: nextPassword } })).status()).toBe(200);
+    // Tài khoản Admin cuối cùng: không được tự khóa/hạ quyền dù vẫn có TTKT hoạt động.
+    for (const patch of [{ active: false }, { role: "RECORDING_ARBITER" }]) {
+      expect((await tech.patch(`/api/users/${actor.id}`, { data: { fullName: actor.fullName, role: actor.role, active: true, expectedVersion: actor.sessionVersion, currentPassword: adminPassword, ...patch } })).status()).toBe(409);
+    }
+    await page.getByRole("button", { name: "Tạo tài khoản", exact: true }).click();
+    await createDialog.getByLabel("Tên đăng nhập", { exact: true }).fill("backup-tech");
+    await createDialog.getByLabel("Họ tên", { exact: true }).fill("TTKT dự phòng");
+    await createDialog.getByLabel("Vai trò", { exact: true }).selectOption("ADMIN");
+    await createDialog.getByLabel("Mật khẩu mới", { exact: true }).fill(password);
+    await createDialog.getByLabel("Nhập lại mật khẩu mới", { exact: true }).fill(password);
+    await createDialog.getByLabel("Mật khẩu hiện tại của bạn", { exact: true }).fill(adminPassword);
+    await createDialog.getByRole("button", { name: "Lưu tài khoản", exact: true }).click(); await expect(createDialog).toHaveCount(0);
+    expect((await backup.post("/api/auth/login", { data: { username: "backup-tech", password } })).status()).toBe(200);
+    expect((await backup.get("/api/users")).status()).toBe(200);
+    // Đổi mật khẩu chính mình cũng yêu cầu đăng nhập lại, cả cookie cũ không dùng lại được.
+    const own = page.getByRole("article", { name: "Tài khoản test-admin", exact: true });
+    await own.getByRole("button", { name: "Sửa / Đổi mật khẩu", exact: true }).click();
+    await edit.getByLabel("Mật khẩu mới", { exact: true }).fill(nextPassword);
+    await edit.getByLabel("Nhập lại mật khẩu mới", { exact: true }).fill(nextPassword);
+    await edit.getByLabel("Mật khẩu hiện tại của bạn", { exact: true }).fill(adminPassword);
+    await edit.getByRole("button", { name: "Lưu tài khoản", exact: true }).click(); await expect(page).toHaveURL(/\/login$/);
+    expect((await tech.get("/api/users")).status()).toBe(401);
+    expect((await backup.post("/api/auth/login", { data: { username: "test-admin", password: adminPassword } })).status()).toBe(401);
+    expect((await backup.post("/api/auth/login", { data: { username: "test-admin", password: nextPassword } })).status()).toBe(200);
+  } finally {
+    // Khôi phục chỉ user test của runner, không ảnh hưởng các test khác/DB dev.
+    await db.user.update({ where: { id: actor.id }, data: { passwordHash: await bcrypt.hash(adminPassword, 10), sessionVersion: { increment: 1 } } });
+    await account.dispose(); await backup.dispose();
+  }
+});
+
+test("19 — Admin kế thừa đầy đủ quyền TTKT: giải/import/kết quả/duyệt/projector/export/audit/xóa", async ({ page, admin, recorder }) => {
+  const r = await admin.post("/api/tournaments", { data: { name: "Admin điều hành giải", totalRounds: 7 } });
+  expect(r.status()).toBe(201); const t = await r.json();
+  expect((await admin.patch(`/api/tournaments/${t.id}`, { data: { location: "CLB", requireTechnicalApproval: true } })).status()).toBe(200);
+  await upload(admin, t.id, "pairing", pairingFile, "commit");
+  expect((await admin.get(`/api/tournaments/${t.id}/imports`)).status()).toBe(200);
+  const ms = await matches(admin, t.id);
+  let m = await action(admin, ms[0], { type: "EDIT_RESULT", result: "DRAW", mode: "EXCEPTION", reason: "Admin phân xử" }); expect(m.status).toBe("OFFICIAL");
+  m = await action(admin, m, { type: "REOPEN", reason: "Admin đối chiếu" }); expect(m.status).toBe("REOPENED");
+  m = await action(admin, m, { type: "EDIT_RESULT", result: "WHITE_WIN", mode: "CONFIRM", reason: "Xác nhận lại" });
+  m = await action(recorder, m, { type: "CONFIRM", side: "WHITE" }); m = await action(recorder, m, { type: "CONFIRM", side: "BLACK" });
+  expect(m.status).toBe("AWAITING_CONFIRMATION");
+  m = await action(admin, m, { type: "APPROVE_PUBLICATION" }); expect(m.status).toBe("OFFICIAL");
+  let exception = await action(recorder, ms[1], { type: "ENTER_RESULT", result: "BLACK_FORFEIT" });
+  exception = await action(admin, exception, { type: "APPROVE_EXCEPTION", reason: "Vắng mặt" }); expect(exception.status).toBe("OFFICIAL");
+  expect((await admin.get(`/api/tournaments/${t.id}/live?view=projector`)).status()).toBe(200);
+  expect((await admin.get(`/api/tournaments/${t.id}/audit`)).status()).toBe(200);
+  expect((await admin.get(`/api/tournaments/${t.id}/rounds/2/export-xml`)).status()).toBe(200);
+  expect((await admin.get(`/api/tournaments/${t.id}/export-xlsx`)).status()).toBe(200);
+  await loginPage(page, admin, "/"); await expect(page).toHaveURL(/\/technical$/);
+  await expect(page.getByRole("link", { name: "Quản lý tài khoản", exact: true })).toBeVisible();
+  await page.goto(`/projector/${t.id}`); await expect(page.getByRole("heading", { name: t.name, exact: true })).toBeVisible();
+  expect((await admin.delete(`/api/tournaments/${t.id}`, { data: { confirmName: t.name } })).status()).toBe(200);
 });

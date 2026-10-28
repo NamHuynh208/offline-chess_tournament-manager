@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { parseUserInput } from "../src/lib/users";
+import { canManageTournament, hasRole } from "../src/lib/roles";
+
+const valid = { username: " Arbiter.02 ", fullName: " Trọng tài 2 ", role: "RECORDING_ARBITER", active: true, password: "long-enough-test-password", currentPassword: "test-admin-password" };
+const parsed = parseUserInput(valid, true);
+assert.ok(parsed.data); assert.equal(parsed.data.username, "arbiter.02"); assert.equal(parsed.data.fullName, "Trọng tài 2");
+for (const patch of [{ username: "x" }, { username: "a b" }, { username: "../admin" }, { fullName: " " }, { role: "SUPERADMIN" }, { active: "true" }, { password: "short" }, { password: "á".repeat(37) }, { currentPassword: "" }, { password: 123 }]) assert.ok(parseUserInput({ ...valid, ...patch }, true).error);
+assert.ok(parseUserInput({ ...valid, role: "ADMIN" }, true).data);
+assert.equal(hasRole("ADMIN", ["TECHNICAL_ARBITER"]), true);
+assert.equal(hasRole("TECHNICAL_ARBITER", ["ADMIN"]), false);
+assert.equal(hasRole("RECORDING_ARBITER", ["ADMIN"]), false);
+assert.equal(canManageTournament("ADMIN"), true);
+assert.equal(canManageTournament("TECHNICAL_ARBITER"), true);
+assert.equal(canManageTournament("RECORDING_ARBITER"), false);
+assert.ok(parseUserInput(null, true).error); assert.ok(parseUserInput([], true).error);
+assert.ok(parseUserInput({ ...valid, password: "" }, true).error);
+assert.ok(parseUserInput({ ...valid, password: "", expectedVersion: 0 }, false).data);
+assert.ok(parseUserInput({ ...valid, expectedVersion: -1 }, false).error);
+assert.ok(parseUserInput({ ...valid, expectedVersion: "0" }, false).error);
+console.log("✔ Tài khoản: validate role/username/active/password UTF-8 và phiên bản, không dùng mật khẩu mặc định — PASS");

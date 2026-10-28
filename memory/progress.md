@@ -1,6 +1,16 @@
 > Cập nhật: 2026-10-28
 
 ## Đã xong
+- [x] Vai trò ADMIN tách khỏi TTKT: Admin quản lý tài khoản + đủ quyền TTKT, TTKT không quản lý user; migration admin_role; acceptance 18/19 + 20/20 PASS; nén lại giaidau-deploy.tar.gz
+- [x] /technical/users quản lý TTKT/Arbiter: tạo, tìm, sửa profile/role, khóa/mở, đổi mật khẩu người khác/self; link Header
+- [x] User API TTKT-only + reauth currentPassword, bcrypt12/validation, no passwordHash response/log, last-active-TTKT guard/Serializable/version chống stale; Audit account ops
+- [x] sessionVersion migration + login/requireUser thu hồi phiên khi đổi tài khoản, seed explicit password cũng revoke; migrate dev/test migration giữ dữ liệu
+- [x] Build/lint/tsc/npm test và19/19 Chromium Node20 PASS gồm quản lý tài khoản/security; đóng gói bản mới
+- [x] Apple flat không viền đen: card/modal trắng không border + bóng nhẹ, Header bóng mờ, body #F5F5F7, inputs/color viền #E5E5EA và focus sky; base border-color chống Tailwind currentColor;18/18 acceptance kèm computed style assertions PASS
+- [x] Font Apple/system + smoothing/tracking và góc bo 2–4px toàn hệ thống; giữ quân Trắng/Đen tròn đúng nhận diện
+- [x] Projector Light 100dvh: khung ratio fit/lưới tự co dòng, scroll opt-in, scale/pages/perPage/columns/timer/fixed page/fullscreen/hide controls và localStorage validated
+- [x] 18/18 acceptance Node20 PASS (10PRD giữ nguyên + layout43 bàn/multi-resolution/multi-ratio/storage/scroll); build/lint/unit PASS, đóng gói bản giao diện mới
+- [x] UI Xuất kết quả /technical: XML vòng chọn/từng vòng toàn giải, Excel theo vòng/toàn giải official mặc định hoặc kèm awaiting/disputed; test Chromium tải file thật và assert XML bytes/Excel sheets/rows; build/lint/17 acceptance PASS
 - [x] Chuẩn bị commit/push theo yêu cầu user: quản lý giải + approval/cascade migration, Node20/seed, package/redeploy và Header; không bao gồm secret/DB/archive
 - [x] Header TTKT: không lặp tên/vai trò, dropdown/nút cao 44px căn đáy, icon Lucide18px căn giữa; test desktop/mobile không tràn và 17/17 Acceptance PASS
 - [x] Nén lại giaidau-deploy.tar.gz bản mới để thay archive cũ đang được dùng trên VM, giữ nguyên DB/.env server
@@ -44,9 +54,8 @@
 
 ## Tiếp theo
 - [ ] Kiểm bash -n deploy.sh, nginx -t và deploy thật trên Ubuntu; bật HTTPS trước khi đăng nhập, hoàn thiện rate-limit/dependency audit trước public
-- [ ] Màn hình TTKT: upload XML kỳ thủ, lịch sử nhập, nút xuất file (tạo/cấu hình/chuyển giải + UI import bốc thăm đã xong)
+- [ ] Màn hình TTKT: upload XML kỳ thủ, lịch sử nhập (tạo/cấu hình/chuyển giải + UI import bốc thăm + xuất kết quả đã xong)
 - [ ] Kiểm thử máy chiếu thật/mạng LAN/tải đồng thời thực tế; Chromium tự động đã kiểm 40 bàn, mất mạng/kết nối lại, phân quyền và cập nhật không reload
 - [ ] Xử lý dependency audit (Prisma/deepmerge-ts, Next/PostCSS) trước triển khai production
 - [ ] Danh sách `/record` chưa polling (chỉ Dashboard/Projector tự làm mới); giữ nguyên hàng đợi offline hiện tại
-- [ ] Quản lý tài khoản trọng tài (TTKT tạo tài khoản)
 - [ ] Rate-limit đăng nhập trước khi đưa lên Internet

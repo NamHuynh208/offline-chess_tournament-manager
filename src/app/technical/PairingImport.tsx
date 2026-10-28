@@ -23,16 +23,16 @@ export default function PairingImport({ tid }: { tid: string }) {
     } catch (e) { setError(e instanceof Error ? e.message : "Không kết nối được máy chủ"); }
     finally { setBusy(false); }
   }
-  return <section className="space-y-3 rounded-xl border bg-white p-5"><h2 className="text-lg font-bold">Nhập bốc thăm</h2>
+  return <section className="app-card space-y-3 rounded-sm p-5"><h2 className="text-lg font-bold">Nhập bốc thăm</h2>
     <label className="flex flex-col gap-2 font-semibold">File bốc thăm (.xls / .xlsx)<input disabled={busy} type="file" accept=".xls,.xlsx" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPreview(null); setConfirmed(false); setError(""); setMessage(""); }} /></label>
-    <button disabled={busy || !file} onClick={() => void send(false)} className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white disabled:opacity-50">Xem trước bốc thăm</button>
+    <button disabled={busy || !file} onClick={() => void send(false)} className="rounded-sm bg-slate-900 px-4 py-2 font-semibold text-white disabled:opacity-50">Xem trước bốc thăm</button>
     {error && <p role="alert" className="text-red-800">{error}</p>}{message && <p className="font-semibold text-emerald-800">{message}</p>}
     {preview && <div className="space-y-3"><h3 className="font-bold">Xem trước vòng {preview.round} · {preview.summary.boards} bàn</h3>
       {preview.errors.map((e, i) => <p key={i} className="text-red-800">Lỗi {e.row ? `dòng ${e.row}` : ""} {e.column ?? ""}: {e.message}</p>)}
       {preview.warnings.map((w, i) => <p key={i} className="text-orange-900">Cảnh báo: {w.message}</p>)}
-      {preview.overwrite.length > 0 && <div className="rounded-lg bg-orange-50 p-3 text-orange-900"><p className="font-bold">Cảnh báo ghi đè {preview.summary.overwrittenBoards} bàn ({preview.summary.overwrittenWithResult} bàn đã có kết quả)</p>{preview.overwrite.map((o) => <p key={o.board}>Bàn {o.board}: {o.change}{o.hasResult && " — đã có kết quả"}</p>)}<label className="mt-2 flex gap-2"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />Tôi xác nhận ghi đè các bàn nêu trên</label></div>}
+      {preview.overwrite.length > 0 && <div className="rounded-sm bg-orange-50 p-3 text-orange-900"><p className="font-bold">Cảnh báo ghi đè {preview.summary.overwrittenBoards} bàn ({preview.summary.overwrittenWithResult} bàn đã có kết quả)</p>{preview.overwrite.map((o) => <p key={o.board}>Bàn {o.board}: {o.change}{o.hasResult && " — đã có kết quả"}</p>)}<label className="mt-2 flex gap-2"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />Tôi xác nhận ghi đè các bàn nêu trên</label></div>}
       <div className="max-h-80 overflow-auto"><table className="w-full text-left text-sm"><thead><tr><th>Bàn</th><th>Trắng (STT)</th><th>Đen (STT)</th></tr></thead><tbody>{preview.rows.map((r) => <tr key={r.board} className="border-t"><td className="py-2">{r.board}</td><td>{r.white.name} ({r.white.startNo})</td><td>{r.black ? `${r.black.name} (${r.black.startNo})` : "Miễn đấu (BYE)"}</td></tr>)}</tbody></table></div>
-      <button disabled={busy || !preview.canCommit || (!!preview.overwrite.length && !confirmed)} onClick={() => void send(true)} className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white disabled:opacity-50">Nhập bốc thăm đã xem trước</button>
+      <button disabled={busy || !preview.canCommit || (!!preview.overwrite.length && !confirmed)} onClick={() => void send(true)} className="rounded-sm bg-slate-900 px-4 py-2 font-semibold text-white disabled:opacity-50">Nhập bốc thăm đã xem trước</button>
     </div>}
   </section>;
 }

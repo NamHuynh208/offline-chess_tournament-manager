@@ -15,11 +15,11 @@ const STATUS_STYLE: Record<MatchStatus, string> = {
 };
 
 export function StatusBadge({ status }: { status: MatchStatus }) {
-  return <span className={`shrink-0 rounded-full px-2.5 py-1 text-sm font-semibold ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
+  return <span className={`shrink-0 rounded-sm px-2.5 py-1 text-sm font-semibold ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
 }
 
 export function PieceDot({ side, className = "size-4" }: { side: Side; className?: string }) {
-  return <span aria-hidden className={`inline-block shrink-0 rounded-full border-2 border-slate-800 ${side === "WHITE" ? "bg-white" : "bg-slate-800"} ${className}`} />;
+  return <span aria-hidden className={`inline-block shrink-0 rounded-full border border-[#E5E5EA] ${side === "WHITE" ? "bg-white" : "bg-slate-800"} ${className}`} />;
 }
 
 export const playerMeta = (p: PlayerInfo) =>

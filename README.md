@@ -11,7 +11,7 @@ npm run test:acceptance
 ```
 
 - `test:acceptance` chạy `npm run build` trước, rồi production server ở cổng tạm, áp migrations vào SQLite tạm và tạo 2 tài khoản test với mật khẩu ngẫu nhiên. Không dùng/ghi dữ liệu giải trong DB dev.
-- `tests/acceptance/prd.spec.ts`: 17 test (10 tiêu chí PRD + hồi quy): DB trống → tạo/chuyển/xóa giải, cascade cả audit mất matchId, kiểm quyền/xác nhận xóa; chế độ TTKT duyệt từng bàn/hàng loạt và Projector chỉ công bố sau duyệt. Kiểm đủ 80 phía kỳ thủ trên 40 bàn, UI import, cấu hình, offline, audit và chống ghi đè.
+- `tests/acceptance/prd.spec.ts`: 19 test (10 tiêu chí PRD + hồi quy): quản lý tài khoản, DB trống/tạo/chuyển/xóa, duyệt công bố, export UI thật, offline/audit, projector Light 40–43 bàn và lưu cấu hình. Không skip/expected failure.
 - Tiêu chí 6 đo thời gian từ lúc bắt đầu xác nhận đến khi DOM projector có tỷ số, không reload; kèm kiểm tra Dashboard, phân quyền, mất mạng, đồng bộ lại, phân trang/carousel.
 - XML được so sánh từng byte qua HTTP. File XLS hiện tại ghi vòng 1; dataset các test thường dùng override vòng 2, riêng test XML dùng vòng 1. Không chỉnh sửa file mẫu kỳ vọng.
 - Kết quả: `test-results/acceptance.json`, `playwright-report/index.html`, log server và screenshot/trace khi thất bại. Xem bằng `npx playwright show-report`.
@@ -35,6 +35,7 @@ npx prisma generate
 ## Quản lý giải và duyệt công bố
 
 - Header `/technical`: chọn giải, **+ Tạo giải mới**, **Cấu hình / Sửa giải** (đưa tới form chỉnh sửa ngay trong trang), **Xoá giải đấu**. Empty state có nút tạo giải đầu tiên. Không cần curl để tạo/chỉnh/xóa giải.
+- Khu vực **Xuất kết quả**: chọn Vòng để xuất XML Swiss-Manager theo vòng; chọn Toàn giải sẽ có nút XML riêng cho từng vòng. Excel xuất theo cùng phạm vi, mặc định chỉ OFFICIAL; tùy chọn đối soát thêm sheet Chờ xác nhận/Có bất đồng. Phạm vi xuất không phụ thuộc tab Cần xử lý/Tất cả/Lịch sử; XML luôn chỉ OFFICIAL theo quy tắc exporter hiện có.
 - Trong form tạo/sửa, tùy chọn **Trọng tài kỹ thuật duyệt trước khi lên máy chiếu** mặc định **tắt**: đủ xác nhận thì OFFICIAL ngay theo PRD.
 - Khi bật, cả hai xác nhận xong vẫn `AWAITING_CONFIRMATION`, không có tỷ số trên Projector/export XML chính thức. Điện thoại báo chờ TTKT; Dashboard đưa bàn vào **Cần xử lý**, có **Duyệt công bố** hoặc **Duyệt nhanh tất cả bàn đã đủ xác nhận**.
 - Duyệt công bố chỉ TTKT, chỉ bàn đủ xác nhận và chưa bất đồng; dùng expectedUpdatedAt, ghi action `APPROVE_PUBLICATION` cùng transaction. Duyệt nhanh chỉ xử lý danh sách đã đủ xác nhận lúc bấm, từng bàn có audit; nếu có xung đột/lỗi mạng thì dừng và báo số đã duyệt, không ghi đè kết quả mới.
@@ -42,6 +43,23 @@ npx prisma generate
 - Sau cập nhật, tải lại web ở các máy trọng tài để lấy cấu hình/giao diện mới. Server luôn đọc cờ thật từ DB, không tin cờ từ điện thoại/offline; kiểm lại phiên bản cấu hình trong transaction.
 
 ## Getting Started
+
+### Quản lý tài khoản trọng tài
+
+- TTKT mở **Quản lý tài khoản** trên Header `/technical` hoặc `/technical/users`: tìm kiếm, tạo tài khoản TTKT/Arbiter, sửa họ tên/vai trò, khóa/mở và đặt lại mật khẩu (cả tài khoản của chính mình).
+- Tên đăng nhập mới được chuẩn hóa chữ thường, 3–40 ký tự `a-z`, `0-9`, `.`, `_`, `-`; không đổi tên đăng nhập đã tạo để tránh nhầm định danh. Mật khẩu mới tối thiểu 12 ký tự, tối đa 72 byte UTF-8; nhập lại xác nhận. Để trống hai ô khi sửa để giữ mật khẩu cũ.
+- Mỗi thao tác lưu yêu cầu **mật khẩu hiện tại của TTKT đang đăng nhập**, không phải mật khẩu của người được chỉnh sửa. Server kiểm role/phiên lại trong transaction, chống ghi đè phiên bản cũ và chặn khóa/hạ quyền TTKT hoạt động cuối cùng.
+- Không xóa tài khoản: khóa để ngừng truy cập nhưng giữ AuditLog/kết quả đã nhập. Mỗi thay đổi tăng `User.sessionVersion`, thu hồi cookie cũ ngay ở request tiếp theo; mở khóa không hồi sinh phiên cũ. Sửa tài khoản chính mình sẽ chuyển về đăng nhập. Seed đổi mật khẩu bằng env cũng thu hồi phiên.
+- Migration `20261028020000_user_session_version` thêm phiên bản mặc định 0, không xóa user/mật khẩu/dữ liệu giải. Sau triển khai tất cả cookie cũ chưa có version phải đăng nhập lại một lần. Kiểm tra/đồng bộ hàng đợi offline trước khi đổi quyền/mật khẩu trong giờ thi đấu.
+- API `GET/POST /api/users`, `PATCH /api/users/[id]` chỉ TTKT; không có đăng ký công khai. Chỉ trả trường công khai, không trả passwordHash. Audit `CREATE_USER/UPDATE_USER/CHANGE_PASSWORD` lưu tài khoản TTKT thao tác và snapshot tài khoản đích, tuyệt đối không lưu mật khẩu/hash. Đưa mật khẩu mới cho trọng tài qua kênh riêng; giao diện không cho xem lại mật khẩu.
+
+### Giao diện và trình chiếu
+
+- Toàn hệ thống dùng font stack Apple/system, font smoothing và tracking -0.011em. SF Pro không được tải/cài kèm; máy không có dùng font fallback sẵn có. Card/nút/input/modal bo nhẹ 2–4px; chỉ ký hiệu quân Trắng/Đen giữ hình tròn để nhận diện.
+- Projector nền trắng/xám nhạt, chữ tối, điểm nhấn màu giải và tỷ số có chữ đen/trắng theo tương phản. Khung 100dvh không cuộn trang, lưới tự chia đều chiều cao và thu cỡ chữ theo số dòng/cột; tên dài tối đa 2 dòng và có tooltip tên đầy đủ.
+- Thanh điều khiển có nút Ẩn/Hiện: ratio Auto/16:9/16:10/4:3 (fit vào vùng trình chiếu còn lại, không kéo méo/cắt), scale 75–125%, chia theo 1–4 trang hoặc 10/16/20/24/30/40 bàn/trang, 1–4 cột, trang cố định hoặc tự lật sau 5/10/15/20 giây, Fullscreen API/F11.
+- Cấu hình lưu theo giải trong localStorage, gồm vòng/trang/cỡ hiển thị/ẩn điều khiển. Chọn trang cố định tắt auto; khi bớt bàn thì trang hiện tại được giới hạn lại. Storage sai được kiểm tra/fallback, storage bị chặn thì vẫn dùng phiên hiện tại.
+- Mặc định 20 bàn/trang, 2 cột, tự lật 10 giây. Chế độ vừa khít ưu tiên hiện đủ mọi bàn nên rất nhiều bàn/cột trên màn hình nhỏ sẽ giảm chữ; chọn ít bàn hơn hoặc bật **Cho phép cuộn dọc (giữ chữ lớn)** để giữ cỡ chữ. Dữ liệu/điểm/kết quả OFFICIAL và quyền TTKT giữ nguyên.
 
 First, run the development server:
 

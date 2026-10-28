@@ -1,7 +1,7 @@
 // Chạy trong npm test — vòng đời kết quả (FR-04..06)
 import assert from "node:assert/strict";
 import { applyAction, parseAction, parseTechnicalAction, type MatchState, type RecorderAction } from "../src/lib/match-state";
-import { hasImportedPoints, projectorScore } from "../src/lib/projector";
+import { DEFAULT_PROJECTOR_SETTINGS, hasImportedPoints, parseProjectorSettings, projectorPages, projectorScore } from "../src/lib/projector";
 import type { ClientMatch } from "../src/lib/matches";
 import { textOn } from "../src/lib/colors";
 import { defaultTournament } from "../src/lib/tournament-selection";
@@ -132,5 +132,17 @@ test("TTKT duyệt trước: đủ xác nhận vẫn chờ, chặn duyệt thi�
   assert.equal(applyAction({ ...gated, blackConfirmedAt: null }, { type: "APPROVE_PUBLICATION" }, T, "TECHNICAL_ARBITER").ok, false);
   assert.equal(applyAction({ ...gated, status: "DISPUTED" }, { type: "APPROVE_PUBLICATION" }, T, "TECHNICAL_ARBITER").ok, false);
   assert.deepEqual(parseTechnicalAction({ type: "APPROVE_PUBLICATION" }), { type: "APPROVE_PUBLICATION" });
+});
+test("Cấu hình projector: validate storage, chia đều và không mất/trùng bàn khi đổi cách phân trang", () => {
+  assert.deepEqual(parseProjectorSettings({ scale: -1, columns: 99, seconds: 0, page: Infinity, round: "2", auto: "yes" }), DEFAULT_PROJECTOR_SETTINGS);
+  const stored = { ...DEFAULT_PROJECTOR_SETTINGS, aspect: "4:3", scale: 125, pagination: "pages", pageCount: 3, columns: 4, auto: false, controlsHidden: true, round: 2, page: 1 };
+  assert.deepEqual(parseProjectorSettings(stored), stored);
+  const all = Array.from({ length: 43 }, (_, i) => i + 1);
+  for (const pagination of ["boards", "pages"] as const) for (const pageCount of [1, 2, 3, 4]) for (const perPage of [10, 16, 20, 24, 30, 40]) {
+    const pages = projectorPages(all, { pagination, pageCount, perPage });
+    assert.deepEqual(pages.flat(), all);
+    assert.equal(pages.length, pagination === "pages" ? pageCount : Math.ceil(all.length / perPage));
+  }
+  assert.deepEqual(projectorPages([], DEFAULT_PROJECTOR_SETTINGS), [[]]);
 });
 console.log("\nState machine + Projector + Contrast + Tournament: PASS");

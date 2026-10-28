@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 const prisma = new PrismaClient();
 
 const users = [
-  { username: "admin", fullName: "Trọng tài kỹ thuật", role: Role.TECHNICAL_ARBITER, pw: process.env.SEED_ADMIN_PASSWORD },
+  { username: "admin", fullName: "Quản trị hệ thống", role: Role.ADMIN, pw: process.env.SEED_ADMIN_PASSWORD },
   { username: "arbiter1", fullName: "Trọng tài ghi kết quả 1", role: Role.RECORDING_ARBITER, pw: process.env.SEED_ARBITER_PASSWORD },
 ];
 
@@ -18,7 +18,7 @@ async function main() {
     }
     const password = pw?.trim() || randomBytes(24).toString("base64url");
     const passwordHash = await bcrypt.hash(password, 10);
-    await prisma.user.upsert({ where: { username: u.username }, update: { passwordHash, role: u.role }, create: { ...u, passwordHash } });
+    await prisma.user.upsert({ where: { username: u.username }, update: { passwordHash, role: u.role, sessionVersion: { increment: 1 } }, create: { ...u, passwordHash } });
     if (!pw?.trim()) console.warn(`[SEED] CẢNH BÁO: thiếu mật khẩu ${u.username}. Mật khẩu ngẫu nhiên dùng lần đầu: ${password}\nLưu ở nơi an toàn, không công khai log này. Đặt biến SEED tương ứng rồi seed lại để đổi mật khẩu.`);
     console.log(`seeded ${u.username} (${u.role})`);
   }

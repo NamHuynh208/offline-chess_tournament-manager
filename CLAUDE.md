@@ -14,10 +14,13 @@ Web app để Trọng tài cập nhật kết quả giải cờ vua USCC, tích 
 ## 1. Phân quyền
 
 - Chỉ Trọng tài được cấp tài khoản mới vào được web. **Kỳ thủ và khán giả KHÔNG có tài khoản**, không tự mở web.
-  Không có trang đăng ký; tài khoản do Trọng tài kỹ thuật tạo (hoặc seed).
+  Không có trang đăng ký; tài khoản do Admin tạo (hoặc seed).
+- `ADMIN` (Quản trị hệ thống): mọi quyền của `TECHNICAL_ARBITER` + quản lý tài khoản (tạo, sửa, khóa, đặt mật khẩu).
+  Kiểm quyền qua `src/lib/roles.ts`: `hasRole` (ADMIN luôn qua), `canManageTournament` (ADMIN | TECHNICAL_ARBITER).
+  Migration `admin_role` chỉ nâng tài khoản `admin` sẵn có lên ADMIN; các TTKT khác giữ nguyên.
 - Mọi route (trừ trang đăng nhập và màn hình trình chiếu công khai nếu có) phải kiểm tra session + role ở server
   (Server Action / Route Handler), không chỉ ẩn nút ở client.
-- `TECHNICAL_ARBITER` (Trọng tài kỹ thuật): toàn quyền
+- `TECHNICAL_ARBITER` (Trọng tài kỹ thuật): toàn quyền điều hành giải, **không** quản lý tài khoản người khác
   - tạo/cấu hình giải: tên, thời gian, địa điểm, số vòng, đơn vị tổ chức, logo, màu nhận diện;
   - nhập file danh sách kỳ thủ / file bốc thăm;
   - duyệt, sửa kết quả; xử lý ngoại lệ (bất đồng, duyệt không cần xác nhận, mở lại);
@@ -101,6 +104,8 @@ Chuyển trạng thái hợp lệ:
 - Seed thiếu password sinh ngẫu nhiên cho tài khoản mới, cảnh báo console; tài khoản có sẵn giữ nguyên nếu không truyền password. SEED_DEFAULT_TOURNAMENT=true tạo mẫu idempotent, mặc định không tạo.
 - `npm run package:deploy` dùng danh sách source cho phép + tar/filter/verify, không đưa DB/.env vào gói; redeploy-server.sh kiểm archive trước extract và gọi deploy.sh giữ DB/backup, không reset/seed tự động.
 - Xóa giải chỉ TTKT qua DELETE /api/tournaments/[id] với confirmName chính xác. FK cascade xóa vòng/bàn/kỳ thủ/import/audit theo giải, kể cả log có matchId=null; không xóa User hay giải khác. Re-import vẫn giữ audit SetNull.
+- Quản lý user tại /technical/users và /api/users: ADMIN-only (TTKT nhận 403, link ẩn) + currentPassword của actor, mật khẩu mới >=12 ký tự/<=72bytes, hash bcrypt12, không trả/log hash hoặc password. Không xóa user, dùng active; bảo vệ Admin active cuối cùng trong Serializable transaction. Audit CREATE_USER/UPDATE_USER/CHANGE_PASSWORD snapshot public với target id.
+- User.sessionVersion + session cookie version phải khớp; mọi sửa user tăng version/thu hồi phiên, self-edit đăng nhập lại. Seed explicit đổi password cũng increment; cookie legacy thiếu version bị 401 an toàn.
 
 ## Project Memory Guidelines
 

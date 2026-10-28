@@ -13,6 +13,7 @@ export async function POST(req: Request) {
   }
   const session = await getSession();
   session.userId = user.id;
+  session.sessionVersion = user.sessionVersion;
   await session.save();
   return Response.json({ id: user.id, username: user.username, fullName: user.fullName, role: user.role });
 }

@@ -197,14 +197,14 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
 
   return (
     <div className="mx-auto min-h-dvh max-w-xl pb-24">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="app-header sticky top-0 z-20">
         <div className="h-1.5" style={{ background: brand }} />
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
             <div className="truncate font-bold">{t?.name ?? "Chưa có giải"}</div>
             <div className="truncate text-sm text-slate-500">{user.fullName}</div>
           </div>
-          <button onClick={logout} aria-label="Đăng xuất" className="flex size-12 items-center justify-center rounded-xl text-slate-600 active:bg-slate-100">
+          <button onClick={logout} aria-label="Đăng xuất" className="flex size-12 items-center justify-center rounded-sm text-slate-600 active:bg-slate-100">
             <LogOut size={22} />
           </button>
         </div>
@@ -215,7 +215,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
               <div className="flex items-center gap-2">
                 <AlertTriangle size={18} className="shrink-0" />
                 <span className="flex-1">Phiên đăng nhập hết hạn. Thao tác vẫn giữ trên máy.</span>
-                <a href="/login" className="rounded-lg bg-red-600 px-3 py-2 font-semibold text-white">Đăng nhập lại</a>
+                <a href="/login" className="rounded-sm bg-red-600 px-3 py-2 font-semibold text-white">Đăng nhập lại</a>
               </div>
             ) : failed ? (
               <div className="flex flex-col gap-2">
@@ -225,7 +225,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
                     Thao tác bị từ chối – {failed.label}: {failed.error}
                   </span>
                 </div>
-                <button onClick={discardFailed} className="self-start rounded-lg bg-red-600 px-3 py-2 font-semibold text-white">Bỏ thao tác này</button>
+                <button onClick={discardFailed} className="self-start rounded-sm bg-red-600 px-3 py-2 font-semibold text-white">Bỏ thao tác này</button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -233,7 +233,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
                 <span className="flex-1">
                   {offline ? "Mất kết nối - Đang giữ thao tác trên máy" : "Đang đồng bộ"} ({queue.length})
                 </span>
-                <button onClick={() => void flush()} disabled={syncing} className="flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-2 font-semibold text-white disabled:opacity-60">
+                <button onClick={() => void flush()} disabled={syncing} className="flex items-center gap-1 rounded-sm bg-amber-500 px-3 py-2 font-semibold text-white disabled:opacity-60">
                   <RefreshCw size={16} className={syncing ? "animate-spin" : ""} /> Thử đồng bộ lại
                 </button>
               </div>
@@ -255,7 +255,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
                 setTid(e.target.value);
                 setRound(tournaments.find((x) => x.id === e.target.value)?.rounds.at(-1) ?? 0);
               }}
-              className="h-12 rounded-xl border border-slate-300 bg-white px-3 text-base"
+              className="h-12 rounded-sm border border-[#E5E5EA] bg-white px-3 text-base"
               aria-label="Giải đấu"
             >
               {tournaments.map((x) => (
@@ -271,7 +271,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
                 key={n}
                 onClick={() => setRound(n)}
                 aria-pressed={n === round}
-                className={`h-11 shrink-0 rounded-xl px-4 font-semibold ${n === round ? "" : "bg-slate-100 text-slate-700"}`}
+                className={`h-11 shrink-0 rounded-sm px-4 font-semibold ${n === round ? "" : "bg-slate-100 text-slate-700"}`}
                 style={n === round ? { background: brand, color: textOn(brand) } : undefined}
               >
                 Vòng {n}
@@ -287,7 +287,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
               inputMode="search"
               placeholder="Số bàn, tên hoặc STT kỳ thủ"
               aria-label="Tìm bàn đấu"
-              className="h-12 w-full rounded-xl border border-slate-300 bg-white pr-3 pl-10 text-base"
+              className="h-12 w-full rounded-sm border border-[#E5E5EA] bg-white pr-3 pl-10 text-base"
             />
           </label>
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4" role="group" aria-label="Lọc trạng thái">
@@ -296,7 +296,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
                 key={f.label}
                 onClick={() => setFilter(i)}
                 aria-pressed={i === filter}
-                className={`h-10 shrink-0 rounded-full px-3.5 text-sm font-semibold ${i === filter ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
+                className={`h-10 shrink-0 rounded-sm px-3.5 text-sm font-semibold ${i === filter ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
               >
                 {f.label} ({matches.filter((m) => f.has(m.status)).length})
               </button>
@@ -311,7 +311,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
         ) : loadState === "error" && !serverMatches.length ? (
           <div className="flex flex-col items-center gap-3 py-10 text-slate-600">
             Không tải được danh sách bàn.
-            <button onClick={() => void loadMatches()} className="flex h-12 items-center gap-2 rounded-xl bg-slate-900 px-5 font-semibold text-white">
+            <button onClick={() => void loadMatches()} className="flex h-12 items-center gap-2 rounded-sm bg-slate-900 px-5 font-semibold text-white">
               <RefreshCw size={18} /> Tải lại
             </button>
           </div>
@@ -324,7 +324,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
             <button
               key={m.id}
               onClick={() => setSelectedId(m.id)}
-              className="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50"
+              className="app-card flex flex-col gap-2.5 rounded-sm p-4 text-left active:bg-slate-50"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xl font-bold">Bàn {m.board}</span>

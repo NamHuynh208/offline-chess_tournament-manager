@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { textOn } from "@/lib/colors";
 
 export type TournamentConfig = { id: string; name: string; startDate: string | null; endDate: string | null; location: string | null; organizer: string | null; totalRounds: number; logoUrl: string | null; primaryColor: string; timezone: string; requireTechnicalApproval: boolean };
-const input = "min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal";
+const input = "min-w-0 rounded-sm border border-[#E5E5EA] bg-white px-3 py-2 font-normal";
 const dateValue = (value: string | null, timezone: string) => {
   if (!value) return "";
   const parts = new Intl.DateTimeFormat("sv-SE", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(value));
@@ -40,7 +40,7 @@ export default function TournamentSettings({ tid, onSaved, onCancel }: { tid?: s
     } catch (e) { setError(e instanceof Error ? e.message : "Không kết nối được máy chủ"); }
     finally { setBusy(false); }
   }
-  return <section className="space-y-3 rounded-xl border bg-white p-5"><h2 className="text-lg font-bold">{tid ? "Cấu hình giải đấu" : "Tạo giải đấu mới"}</h2>
+  return <section className="app-card space-y-3 rounded-sm p-5"><h2 className="text-lg font-bold">{tid ? "Cấu hình giải đấu" : "Tạo giải đấu mới"}</h2>
     {error && <p role="alert" className="text-red-800">{error}</p>}
     {message && <p className="font-semibold text-emerald-800">{message}</p>}
     {config && <form key={config.id} onSubmit={save} className="grid gap-4 sm:grid-cols-2">
@@ -51,9 +51,9 @@ export default function TournamentSettings({ tid, onSaved, onCancel }: { tid?: s
       <label className="flex flex-col gap-1 font-semibold">Đơn vị tổ chức<input name="organizer" maxLength={200} defaultValue={config.organizer ?? ""} className={input} /></label>
       <label className="flex flex-col gap-1 font-semibold">Số vòng<input required type="number" min={1} max={30} name="totalRounds" defaultValue={config.totalRounds} className={input} /></label>
       <label className="flex flex-col gap-1 font-semibold">URL logo<input name="logoUrl" defaultValue={config.logoUrl ?? ""} placeholder="https://... hoặc /logo.png" className={input} /></label>
-      <label className="flex flex-col gap-1 font-semibold">Màu sắc nhận diện<input aria-label="Màu sắc nhận diện" type="color" name="primaryColor" defaultValue={config.primaryColor} className="h-11 w-full rounded border" /></label>
-      <div className="space-y-2 rounded-lg bg-slate-50 p-3 sm:col-span-2"><label className="flex items-start gap-3 font-semibold"><input type="checkbox" name="requireTechnicalApproval" defaultChecked={config.requireTechnicalApproval} className="mt-1" />Trọng tài kỹ thuật duyệt trước khi lên máy chiếu</label><p className="text-sm text-slate-600">Mặc định tắt: đủ xác nhận thì chính thức ngay. Khi bật: đủ xác nhận vẫn chờ TTKT duyệt công bố. Ngoại lệ/BYE do TTKT duyệt vẫn chính thức. Đổi tùy chọn không tự công bố các bàn đang chờ và không thu hồi kết quả đã chính thức.</p></div>
-      <div className="flex items-end gap-3"><button disabled={busy} className="rounded-lg px-4 py-3 font-bold disabled:opacity-50" style={{ background: config.primaryColor, color: textOn(config.primaryColor) }}>{busy ? "Đang lưu..." : tid ? "Lưu cấu hình giải" : "Tạo giải đấu"}</button>{onCancel && <button type="button" disabled={busy} className={input} onClick={onCancel}>Hủy</button>}</div>
+      <label className="flex flex-col gap-1 font-semibold">Màu sắc nhận diện<input aria-label="Màu sắc nhận diện" type="color" name="primaryColor" defaultValue={config.primaryColor} className="h-11 w-full rounded-sm border border-[#E5E5EA] bg-[#F5F5F7]" /></label>
+      <div className="space-y-2 rounded-sm bg-slate-50 p-3 sm:col-span-2"><label className="flex items-start gap-3 font-semibold"><input type="checkbox" name="requireTechnicalApproval" defaultChecked={config.requireTechnicalApproval} className="mt-1" />Trọng tài kỹ thuật duyệt trước khi lên máy chiếu</label><p className="text-sm text-slate-600">Mặc định tắt: đủ xác nhận thì chính thức ngay. Khi bật: đủ xác nhận vẫn chờ TTKT duyệt công bố. Ngoại lệ/BYE do TTKT duyệt vẫn chính thức. Đổi tùy chọn không tự công bố các bàn đang chờ và không thu hồi kết quả đã chính thức.</p></div>
+      <div className="flex items-end gap-3"><button disabled={busy} className="rounded-sm px-4 py-3 font-bold disabled:opacity-50" style={{ background: config.primaryColor, color: textOn(config.primaryColor) }}>{busy ? "Đang lưu..." : tid ? "Lưu cấu hình giải" : "Tạo giải đấu"}</button>{onCancel && <button type="button" disabled={busy} className={input} onClick={onCancel}>Hủy</button>}</div>
     </form>}
   </section>;
 }

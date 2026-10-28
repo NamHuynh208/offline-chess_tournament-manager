@@ -24,6 +24,7 @@ async function main() {
     const warning = seed();
     const users = await db.user.findMany({ orderBy: { username: "asc" } });
     assert.equal(users.length, 2);
+    assert.equal(users.find((u) => u.username === "admin")?.role, "ADMIN");
     const passwords = [...warning.matchAll(/Mật khẩu ngẫu nhiên dùng lần đầu: (\S+)/g)].map((m) => m[1]);
     assert.equal(passwords.length, 2); assert.notEqual(passwords[0], passwords[1]);
     for (const u of users) assert.ok((await Promise.all(passwords.map((p) => bcrypt.compare(p, u.passwordHash)))).some(Boolean));

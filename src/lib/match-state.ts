@@ -1,6 +1,7 @@
 // Vòng đời kết quả cho Trọng tài ghi (FR-04..06). Thuần, dùng chung server (kiểm tra thật) và điện thoại (cập nhật lạc quan khi mất mạng).
 import type { AuditAction, MatchStatus, ResultType, Role } from "@prisma/client";
 import { RESULT_DISPLAY, STATUS_LABEL } from "./results";
+import { canManageTournament } from "./roles";
 
 export type Side = "WHITE" | "BLACK";
 export const SIDE_LABEL: Record<Side, string> = { WHITE: "Trắng", BLACK: "Đen" };
@@ -77,12 +78,12 @@ export const readyToPublish = (m: Pick<MatchState, "status" | "result" | "whiteC
 export function applyAction(m: MatchState, a: RecorderAction | TechnicalAction, now: string, role: Role = "RECORDING_ARBITER"): Outcome {
   const fail = (error: string) => ({ ok: false as const, error });
   if (a.type === "APPROVE_PUBLICATION") {
-    if (role !== "TECHNICAL_ARBITER") return fail("Chỉ Trọng tài kỹ thuật được duyệt công bố");
+    if (!canManageTournament(role)) return fail("Chỉ Admin hoặc Trọng tài kỹ thuật được duyệt công bố");
     if (!readyToPublish(m)) return fail("Chỉ duyệt công bố khi ván đang chờ và đã đủ xác nhận kỳ thủ");
     return { ok: true, audit: "APPROVE_PUBLICATION", next: { ...m, status: "OFFICIAL", exceptionReason: null } };
   }
   if (["APPROVE_EXCEPTION", "EDIT_RESULT", "REOPEN", "CANCEL_RESULT"].includes(a.type)) {
-    if (role !== "TECHNICAL_ARBITER") return fail("Chỉ Trọng tài kỹ thuật được thực hiện");
+    if (!canManageTournament(role)) return fail("Chỉ Admin hoặc Trọng tài kỹ thuật được thực hiện");
     if (!("reason" in a) || !a.reason.trim() || a.reason.length > 500) return fail("Cần nhập lý do (tối đa 500 ký tự)");
   }
   switch (a.type) {

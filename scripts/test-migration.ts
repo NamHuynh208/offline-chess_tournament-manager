@@ -19,10 +19,11 @@ async function main() {
   try {
     mkdirSync(join(temp, "migrations"));
     writeFileSync(join(temp, "schema.prisma"), readFileSync("prisma/schema.prisma"));
-    for (const name of readdirSync("prisma/migrations")) if (name !== latest) cpSync(join("prisma/migrations", name), join(temp, "migrations", name), { recursive: true });
+    for (const name of readdirSync("prisma/migrations")) if (name === "migration_lock.toml" || name < latest) cpSync(join("prisma/migrations", name), join(temp, "migrations", name), { recursive: true });
     migrate(join(temp, "schema.prisma"));
     // Ghi bằng SQL vì client mới có cột requireTechnicalApproval chưa tồn tại ở DB cũ.
     await db.$executeRaw`INSERT INTO User (id, username, passwordHash, fullName, role) VALUES ('u', 'test', 'not-a-real-password', 'Test', 'TECHNICAL_ARBITER')`;
+    await db.$executeRaw`INSERT INTO User (id, username, passwordHash, fullName, role) VALUES ('admin-u', 'admin', 'keep-this-hash', 'Admin cũ', 'TECHNICAL_ARBITER')`;
     await db.$executeRaw`INSERT INTO Tournament (id, name, totalRounds, updatedAt) VALUES ('t', 'Giải cũ', 7, CURRENT_TIMESTAMP)`;
     await db.$executeRaw`INSERT INTO Player (id, tournamentId, fullName) VALUES ('p', 't', 'Kỳ thủ cũ')`;
     await db.$executeRaw`INSERT INTO Round (id, tournamentId, number) VALUES ('r', 't', 1)`;
@@ -38,7 +39,11 @@ async function main() {
     assert.equal(await db.auditLog.count(), 2);
     await db.tournament.delete({ where: { id: "t" } });
     for (const model of [db.player, db.round, db.match, db.auditLog, db.importLog]) assert.equal(await (model.count as () => Promise<number>)(), 0);
-    assert.equal(await db.user.count(), 1);
+    assert.equal(await db.user.count(), 2);
+    assert.equal((await db.user.findUniqueOrThrow({ where: { id: "u" } })).sessionVersion, 0);
+    assert.equal((await db.user.findUniqueOrThrow({ where: { id: "u" } })).role, "TECHNICAL_ARBITER");
+    const admin = await db.user.findUniqueOrThrow({ where: { id: "admin-u" } });
+    assert.equal(admin.role, "ADMIN"); assert.equal(admin.passwordHash, "keep-this-hash"); assert.equal(admin.sessionVersion, 1);
     assert.deepEqual(await db.$queryRawUnsafe("PRAGMA foreign_key_check"), []);
     console.log("✔ Migration: giữ kết quả/audit DB cũ, cờ mặc định false, xóa cascade cả log mất matchId, giữ user — PASS");
   } finally { await db.$disconnect(); rmSync(temp, { recursive: true, force: true }); }

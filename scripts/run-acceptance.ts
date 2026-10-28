@@ -22,6 +22,7 @@ async function main() {
   prisma = new PrismaClient({ datasourceUrl: databaseUrl });
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.createMany({ data: [
+    { username: "test-admin", fullName: "Admin kiểm thử", role: "ADMIN", passwordHash },
     { username: "test-tech", fullName: "TTKT kiểm thử", role: "TECHNICAL_ARBITER", passwordHash },
     { username: "test-record", fullName: "Trọng tài ghi kiểm thử", role: "RECORDING_ARBITER", passwordHash },
   ] });

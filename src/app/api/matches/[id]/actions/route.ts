@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { applyAction, parseAction, parseTechnicalAction, toState, type MatchState } from "@/lib/match-state";
 import { matchInclude, toClientMatch } from "@/lib/matches";
 import { requireUser } from "@/lib/session";
+import { canManageTournament } from "@/lib/roles";
 
 class Conflict extends Error {}
 const snapshot = (s: MatchState) => ({ resultVersion: s.resultVersion, status: s.status, result: s.result, whiteConfirmedAt: s.whiteConfirmedAt, blackConfirmedAt: s.blackConfirmedAt, exceptionReason: s.exceptionReason });
@@ -19,7 +20,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const body = await req.json().catch(() => null);
   const technical = parseTechnicalAction(body?.action);
-  if (technical && auth.user.role !== "TECHNICAL_ARBITER") return Response.json({ error: "Không có quyền thực hiện" }, { status: 403 });
+  if (technical && !canManageTournament(auth.user.role)) return Response.json({ error: "Không có quyền thực hiện" }, { status: 403 });
   const action = technical ?? parseAction(body?.action);
   if (!action) return Response.json({ error: "Thao tác không hợp lệ" }, { status: 400 });
   const opId = typeof body?.opId === "string" && /^[\w-]{8,64}$/.test(body.opId) ? body.opId : null;

@@ -10,7 +10,7 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "test": "tsx scripts/test-samples.ts && tsx scripts/test-match-state.ts && tsx scripts/test-deploy-config.ts && tsx scripts/test-seed.ts && tsx scripts/test-migration.ts",
+    "test": "tsx scripts/test-samples.ts && tsx scripts/test-match-state.ts && tsx scripts/test-deploy-config.ts && tsx scripts/test-seed.ts && tsx scripts/test-migration.ts && tsx scripts/test-users.ts",
     "test:acceptance": "npm run build && tsx scripts/run-acceptance.ts",
     "package:deploy": "tsx scripts/package-deploy.ts"
   },

@@ -51,7 +51,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
   if (step === "detail") {
     content = (
       <Sheet title={label} onBack={onClose} backLabel="Danh sách">
-        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="app-card flex flex-col gap-3 rounded-sm p-4">
           <PlayerLine side="WHITE" p={m.white} />
           <PlayerLine side="BLACK" p={m.black} />
           <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
@@ -59,7 +59,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
             <span className="text-2xl font-bold">{m.result ? RESULT_DISPLAY[m.result].score : "–"}</span>
           </div>
           <ConfirmMarks m={m} />
-          {m.exceptionReason && <p className="rounded-lg bg-amber-50 p-3 text-amber-900">Đã yêu cầu TTKT duyệt ngoại lệ: {m.exceptionReason}</p>}
+          {m.exceptionReason && <p className="rounded-sm bg-amber-50 p-3 text-amber-900">Đã yêu cầu TTKT duyệt ngoại lệ: {m.exceptionReason}</p>}
         </div>
 
         {m.status === "DISPUTED" && <Note tone="red">Có bất đồng – chờ Trọng tài kỹ thuật xử lý. Kết quả chưa được công bố.</Note>}
@@ -90,7 +90,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
         )}
 
         {canRequestException && (
-          <button onClick={() => (setExceptionFromKiosk(false), go("exception"))} className="flex h-14 items-center justify-center gap-2 rounded-xl border-2 border-amber-500 font-semibold text-amber-800">
+          <button onClick={() => (setExceptionFromKiosk(false), go("exception"))} className="flex h-14 items-center justify-center gap-2 rounded-sm border-2 border-amber-500 font-semibold text-amber-800">
             <ShieldAlert size={20} /> Yêu cầu Trọng tài kỹ thuật duyệt ngoại lệ
           </button>
         )}
@@ -99,11 +99,11 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
   } else if (step === "review" && chosen) {
     content = (
       <Sheet title="Trọng tài kiểm tra lại" onBack={() => go("detail")} backLabel="Chọn lại">
-        <div className="flex flex-col gap-5 rounded-2xl border-4 p-5" style={{ borderColor: brand }}>
+        <div className="app-card flex flex-col gap-5 rounded-sm p-5" style={{ borderTop: `3px solid ${brand}` }}>
           <div className="text-center text-xl font-bold text-slate-500">{label}</div>
           <ReviewSide side="WHITE" name={m.white.fullName} sno={m.white.startNo} />
           {m.black ? <ReviewSide side="BLACK" name={m.black.fullName} sno={m.black.startNo} /> : <div className="text-xl italic text-slate-500">Không có kỳ thủ Đen (miễn đấu)</div>}
-          <div className="rounded-xl bg-slate-900 p-4 text-center text-white">
+          <div className="rounded-sm bg-slate-900 p-4 text-center text-white">
             <div className="text-sm tracking-wide uppercase opacity-70">Kết quả</div>
             <div className="text-6xl font-black tabular-nums">{RESULT_DISPLAY[chosen].score}</div>
             <div className="mt-1 text-xl font-semibold">{RESULT_DISPLAY[chosen].text}</div>
@@ -113,7 +113,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
         <BigButton className="bg-sky-600 text-white" onClick={() => run({ type: "ENTER_RESULT", result: chosen }, `${label}: nhập ${RESULT_DISPLAY[chosen].score}`, "WHITE")}>
           <Hand size={24} /> Chuyển cho kỳ thủ xác nhận
         </BigButton>
-        <button onClick={() => go("detail")} className="h-14 rounded-xl bg-slate-100 font-semibold text-slate-700">
+        <button onClick={() => go("detail")} className="h-14 rounded-sm bg-slate-100 font-semibold text-slate-700">
           Chọn lại
         </button>
       </Sheet>
@@ -179,7 +179,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
                  : awaitingPublication ? "Đã đủ xác nhận kỳ thủ. Kết quả chỉ lên máy chiếu sau khi TTKT duyệt công bố." : "Kiểm tra lại trạng thái ván trong danh sách."}
         </p>
         {pendingSync && offline && (
-          <p className="flex items-center gap-2 rounded-xl bg-black/25 px-4 py-3 font-semibold">
+          <p className="flex items-center gap-2 rounded-sm bg-black/25 px-4 py-3 font-semibold">
             <WifiOff size={20} /> Mất kết nối – thao tác đang giữ trên máy, sẽ tự đồng bộ
           </p>
         )}
@@ -204,7 +204,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
   }
 
   const kiosk = KIOSK_STEPS.includes(step) || (step === "exception" && exceptionFromKiosk);
-  return kiosk ? <Kiosk>{content}</Kiosk> : <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-50">{content}</div>;
+  return kiosk ? <Kiosk>{content}</Kiosk> : <div className="fixed inset-0 z-40 overflow-y-auto bg-[#F5F5F7]">{content}</div>;
 }
 
 /** Toàn màn hình, chặn nút Back, khóa cuộn trang dưới: kỳ thủ cầm máy không bấm nhầm sang bàn khác */
@@ -257,7 +257,7 @@ function PlayerTurn(props: {
   return (
     <div className={`flex min-h-dvh flex-col gap-5 p-5 ${dark ? "bg-slate-900 text-white" : "bg-white text-slate-900"}`}>
       <div className="flex items-center justify-between">
-        <span className={`rounded-full px-3 py-1 text-sm font-bold uppercase ${dark ? "bg-white text-slate-900" : "bg-slate-900 text-white"}`}>
+        <span className={`rounded-sm px-3 py-1 text-sm font-bold uppercase ${dark ? "bg-white text-slate-900" : "bg-slate-900 text-white"}`}>
           Lượt {side === "WHITE" ? "1" : "2"}: Kỳ thủ {SIDE_LABEL[side]}
         </span>
         <button onClick={props.onExit} className="px-2 py-1 text-sm opacity-50">
@@ -269,7 +269,7 @@ function PlayerTurn(props: {
         <PieceDot side={side} className={`size-10 ${dark ? "border-white" : ""}`} />
         <div className="text-4xl leading-tight font-black">{name}</div>
         {sno != null && <div className="text-2xl font-semibold">STT {sno}</div>}
-        <div className={`mt-4 w-full rounded-2xl p-5 ${dark ? "bg-white/10" : "bg-slate-100"}`}>
+        <div className={`mt-4 w-full rounded-sm p-5 ${dark ? "bg-white/10" : "bg-slate-100"}`}>
           <div className="text-sm font-semibold uppercase opacity-70">Kết quả ván đấu</div>
           <div className="text-7xl font-black tabular-nums">{result ? RESULT_DISPLAY[result].score : "?"}</div>
           <div className="text-2xl font-bold">{result ? RESULT_DISPLAY[result].text : ""}</div>
@@ -295,14 +295,14 @@ function ExceptionForm({ error, onCancel, onSubmit }: { error: string; onCancel:
       <p className="text-slate-600">Trọng tài kỹ thuật sẽ xem xét và duyệt kết quả. Ván chưa được công bố cho tới khi được duyệt.</p>
       <div className="flex flex-col gap-2">
         {QUICK_REASONS.map((r) => (
-          <button key={r} onClick={() => setReason(r)} className={`min-h-12 rounded-xl border px-4 py-2 text-left font-medium ${reason === r ? "border-amber-500 bg-amber-50" : "border-slate-300 bg-white"}`}>
+          <button key={r} onClick={() => setReason(r)} className={`min-h-12 rounded-sm border px-4 py-2 text-left font-medium ${reason === r ? "border-amber-500 bg-amber-50" : "border-[#E5E5EA] bg-white"}`}>
             {r}
           </button>
         ))}
       </div>
       <label className="flex flex-col gap-1 font-medium">
         Lý do
-        <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={3} className="rounded-xl border border-slate-300 bg-white p-3 text-base" />
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={3} className="rounded-sm border border-[#E5E5EA] bg-white p-3 text-base" />
       </label>
       {error && <Note tone="red">{error}</Note>}
       <BigButton className="bg-amber-500 text-white disabled:opacity-50" disabled={!reason.trim()} onClick={() => onSubmit(reason)}>
@@ -315,8 +315,8 @@ function ExceptionForm({ error, onCancel, onSubmit }: { error: string; onCancel:
 function Sheet({ title, onBack, backLabel, children }: { title: string; onBack: () => void; backLabel: string; children: React.ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-xl flex-col">
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-slate-200 bg-white px-2 py-2">
-        <button onClick={onBack} className="flex h-12 items-center gap-1 rounded-xl px-3 font-semibold text-slate-700 active:bg-slate-100">
+      <div className="app-header sticky top-0 z-10 flex items-center gap-2 px-2 py-2">
+        <button onClick={onBack} className="flex h-12 items-center gap-1 rounded-sm px-3 font-semibold text-slate-700 active:bg-slate-100">
           <ArrowLeft size={22} /> {backLabel}
         </button>
         <h1 className="flex-1 truncate pr-3 text-right text-lg font-bold">{title}</h1>
@@ -343,7 +343,7 @@ function ResultOption({ r, disabled, onPick, big }: { r: ResultType; disabled: b
     <button
       onClick={onPick}
       disabled={disabled}
-      className={`flex flex-col items-center justify-center rounded-xl border-2 border-slate-300 bg-white px-2 font-bold active:bg-sky-50 disabled:opacity-30 ${big ? "h-24" : "h-20"}`}
+      className={`flex flex-col items-center justify-center rounded-sm border border-[#E5E5EA] bg-white px-2 font-bold active:bg-sky-50 disabled:opacity-30 ${big ? "h-24" : "h-20"}`}
     >
       <span className={`tabular-nums ${big ? "text-3xl" : "text-2xl"}`}>{RESULT_DISPLAY[r].score}</span>
       <span className="text-center text-sm leading-tight font-medium text-slate-600">{RESULT_DISPLAY[r].text}</span>
@@ -352,9 +352,9 @@ function ResultOption({ r, disabled, onPick, big }: { r: ResultType; disabled: b
 }
 
 function BigButton({ className = "", ...p }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...p} className={`flex h-16 items-center justify-center gap-2 rounded-2xl text-xl font-bold active:scale-[0.98] ${className}`} />;
+  return <button {...p} className={`flex h-16 items-center justify-center gap-2 rounded-sm text-xl font-bold active:scale-[0.98] ${className}`} />;
 }
 
 function Note({ tone, children }: { tone: "red" | "green"; children: React.ReactNode }) {
-  return <p className={`rounded-xl p-3 font-medium ${tone === "red" ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}>{children}</p>;
+  return <p className={`rounded-sm p-3 font-medium ${tone === "red" ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}>{children}</p>;
 }

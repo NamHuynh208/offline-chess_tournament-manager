@@ -12,6 +12,7 @@ datasource db {
 }
 
 enum Role {
+  ADMIN
   TECHNICAL_ARBITER
   RECORDING_ARBITER
 }
@@ -45,6 +46,9 @@ enum AuditAction {
   EDIT_RESULT
   REOPEN
   APPROVE_PUBLICATION // đủ xác nhận, TTKT duyệt công bố (không phải ngoại lệ)
+  CREATE_USER
+  UPDATE_USER
+  CHANGE_PASSWORD
 }
 
 model User {
@@ -54,6 +58,7 @@ model User {
   fullName     String
   role         Role
   active       Boolean    @default(true)
+  sessionVersion Int      @default(0) // đổi tài khoản thu hồi cookie phiên cũ
   createdAt    DateTime   @default(now())
   auditLogs    AuditLog[]
   enteredMatches Match[]  @relation("EnteredBy")
