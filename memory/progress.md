@@ -1,6 +1,16 @@
-> Cập nhật: 2026-10-28
+> Cập nhật: 2026-11-01
 
 ## Đã xong
+- [x] Bảng xếp hạng: nhập file Xếp hạng Swiss-Manager (preview/commit/ghi đè), chiếu trên projector (nút topbar + link ?view=standings), test samples + acceptance 22
+- [x] Sửa tìm bàn ghi KQ: số thuần/BànN/banN/#N/bN và tên có/không dấu, STTN riêng; helper/unit +test40bàn
+- [x] Redesign Apple ui-ux-pro-max+impeccable: login/record/kiosk/TTKT/users/projector, action-blue/flat/keyboard focus rõ, mobile không tràn
+- [x] TTKT workspace kết quả vs setup, filter vòng trên danh sách, export cạnh kết quả desktop và phía sau attention mobile, giữ đủ thao tác
+- [x] Người dùng chọn projector mặc định40bàn1trang2cột, tỷ số đậm/điểm phụ, resize fit không cắt, giữ các điều khiển/settingsstorage/official rules
+- [x] PRODUCT/DESIGN/sidecar/surfacecontract; detector[] +review độc lập focus/mobileorder resolved, screenshots21test PASS; build/lint/unit/tsc vàpackage bản mới
+- [x] Fine-tune theo feedback: giảm whitespace trang điều hành; tiêu đề projector cùng size với tên, header chiều cao theo zoom; vạch chia dọc giữa 2 bảng, nới layout cột điểm
+- [x] Xác minh lại toàn bộ sau fine-tune: build + acceptance21/21, lint, unit, tsc, diff-check; recapture xem kết quả; đóng gói deploy mới 203894 bytes/146 entries
+- [x] Ẩn projector controls: topbar compact 28px, chỉ còn Điều hành giải đấu + Hiện thanh điều khiển; bảng dùng lại vùng trống
+- [x] Record header: nút về /technical chỉ cho Admin/TTKT, không render với Recording Arbiter; acceptance role check + topbar compact assertion; 22/22 PASS, đóng gói lại
 - [x] Vai trò ADMIN tách khỏi TTKT: Admin quản lý tài khoản + đủ quyền TTKT, TTKT không quản lý user; migration admin_role; acceptance 18/19 + 20/20 PASS; nén lại giaidau-deploy.tar.gz
 - [x] /technical/users quản lý TTKT/Arbiter: tạo, tìm, sửa profile/role, khóa/mở, đổi mật khẩu người khác/self; link Header
 - [x] User API TTKT-only + reauth currentPassword, bcrypt12/validation, no passwordHash response/log, last-active-TTKT guard/Serializable/version chống stale; Audit account ops

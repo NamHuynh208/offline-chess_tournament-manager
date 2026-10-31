@@ -4,7 +4,7 @@ import { ArrowLeft, KeyRound, Plus, RefreshCw, Users } from "lucide-react";
 import { ROLE_LABEL, type ManagedUser } from "@/lib/users";
 
 const input = "min-w-0 rounded-sm border border-[#E5E5EA] bg-white px-3 py-2";
-const button = "inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50";
+const button = "ui-primary disabled:opacity-50";
 
 export default function UserManager() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
@@ -27,13 +27,13 @@ export default function UserManager() {
   const visible = users.filter((u) => `${u.username} ${u.fullName}`.toLocaleLowerCase("vi").includes(query.trim().toLocaleLowerCase("vi")));
   return <div className="min-h-dvh">
     <header className="app-header flex flex-wrap items-center justify-between gap-4 px-6 py-4"><div><h1 className="flex items-center gap-2 text-xl font-bold"><Users aria-hidden size={22} />Quản lý tài khoản trọng tài</h1><p className="mt-1 text-sm text-slate-500">Chỉ Admin được tạo tài khoản và thay đổi quyền/mật khẩu. Trọng tài kỹ thuật chỉ điều hành giải đấu.</p></div><a href="/technical" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold"><ArrowLeft aria-hidden size={18} />Về điều hành kỹ thuật</a></header>
-    <main className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
+    <main className="users-main space-y-5">
       <div className="app-card flex flex-wrap items-end justify-between gap-3 p-4"><label className="flex min-w-0 flex-col gap-1 text-sm font-semibold">Tìm tài khoản<input type="search" aria-label="Tìm tài khoản" value={query} onChange={(e) => setQuery(e.target.value)} className={input} placeholder="Tên đăng nhập hoặc họ tên" /></label><div className="flex flex-wrap gap-2"><button className={button} onClick={() => { setMessage(""); setEditing("new"); }}><Plus aria-hidden size={18} />Tạo tài khoản</button><button disabled={loading} className={`${input} inline-flex min-h-11 items-center gap-2 text-sm font-semibold`} onClick={() => void load()}><RefreshCw aria-hidden size={18} />Tải lại danh sách</button></div></div>
       <p className="text-sm text-slate-600">Không xóa tài khoản để bảo toàn lịch sử. Dùng “Khóa” để ngừng truy cập. Mọi thay đổi tài khoản sẽ thu hồi phiên đăng nhập cũ; các thao tác offline vẫn giữ trên máy và cần kiểm tra sau khi đăng nhập lại.</p>
       {error && <p role="alert" className="text-red-800">{error}</p>}
       {message && <p role="status" className="font-semibold text-emerald-800">{message}</p>}
-      {loading ? <p>Đang tải tài khoản...</p> : <div className="grid gap-4 md:grid-cols-2">{visible.map((u) => <article key={u.id} className="app-card space-y-3 p-5" aria-label={`Tài khoản ${u.username}`}>
-        <div className="flex flex-wrap justify-between gap-2"><h2 className="break-all font-bold">{u.fullName}</h2><span className={`rounded-sm px-2 py-1 text-xs font-semibold ${u.active ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{u.active ? "Đang hoạt động" : "Đã khóa"}</span></div>
+      {loading ? <p>Đang tải tài khoản...</p> : <div className="users-grid">{visible.map((u) => <article key={u.id} className="user-entry app-card space-y-4" aria-label={`Tài khoản ${u.username}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex min-w-0 items-center gap-3"><span aria-hidden className="user-avatar">{u.fullName.slice(0, 1).toLocaleUpperCase("vi")}</span><h2 className="min-w-0 break-all font-semibold">{u.fullName}</h2></div><span className={`rounded-sm px-2 py-1 text-xs font-medium ${u.active ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{u.active ? "Đang hoạt động" : "Đã khóa"}</span></div>
         <p className="break-all text-sm">{u.username}{u.id === currentUserId && " · Tài khoản của bạn"}</p><p className="text-sm text-slate-600">{ROLE_LABEL[u.role]}</p>
         <button className={`${input} inline-flex min-h-11 items-center gap-2 text-sm font-semibold`} onClick={() => { setMessage(""); setEditing(u); }}><KeyRound aria-hidden size={18} />Sửa / Đổi mật khẩu</button>
       </article>)}</div>}

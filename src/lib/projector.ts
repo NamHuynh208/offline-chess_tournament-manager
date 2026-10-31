@@ -1,18 +1,21 @@
 import type { ClientMatch } from "./matches";
 import { RESULT_DISPLAY } from "./results";
 
-export const PROJECTOR_PAGE_SIZE = 20;
+export const PROJECTOR_PAGE_SIZE = 40;
+export const STANDINGS_PER_PAGE_OPTIONS = [10, 16, 20, 24, 30, 40, 50, 60, 80];
 export const projectorScore = (m: Pick<ClientMatch, "status" | "result">) => m.status === "OFFICIAL" && m.result ? RESULT_DISPLAY[m.result].score : null;
 export const hasImportedPoints = (matches: ClientMatch[]) => matches.some((m) => m.white.points !== null || (m.black != null && m.black.points !== null));
 
 export const DEFAULT_PROJECTOR_SETTINGS = {
+  view: "boards" as "boards" | "standings",
   aspect: "auto" as "auto" | "16:9" | "16:10" | "4:3",
   scale: 100,
   pagination: "boards" as "boards" | "pages",
   perPage: PROJECTOR_PAGE_SIZE,
-  pageCount: 2,
+  standingsPerPage: 80, // bảng xếp hạng: số người/trang, riêng với số bàn/trang
+  pageCount: 1,
   columns: 2,
-  auto: true,
+  auto: false,
   seconds: 10,
   scroll: false,
   controlsHidden: false,
@@ -26,7 +29,7 @@ export function parseProjectorSettings(value: unknown): ProjectorSettings {
   const s = { ...DEFAULT_PROJECTOR_SETTINGS };
   if (!value || typeof value !== "object") return s;
   const x = value as Record<string, unknown>;
-  const options = { aspect: ["auto", "16:9", "16:10", "4:3"], scale: [75, 85, 90, 100, 110, 125], pagination: ["boards", "pages"], perPage: [10, 16, 20, 24, 30, 40], pageCount: [1, 2, 3, 4], columns: [1, 2, 3, 4], seconds: [5, 10, 15, 20] };
+  const options = { view: ["boards", "standings"], aspect: ["auto", "16:9", "16:10", "4:3"], scale: [75, 85, 90, 100, 110, 125], pagination: ["boards", "pages"], perPage: [10, 16, 20, 24, 30, 40], standingsPerPage: STANDINGS_PER_PAGE_OPTIONS, pageCount: [1, 2, 3, 4], columns: [1, 2, 3, 4], seconds: [5, 10, 15, 20] };
   for (const key of Object.keys(options) as (keyof typeof options)[]) {
     if ((options[key] as readonly unknown[]).includes(x[key])) Object.assign(s, { [key]: x[key] });
   }

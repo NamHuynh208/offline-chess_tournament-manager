@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-31T00:00:00Z",
+  "title": "Design System: USCC Tournament Manager",
+  "extensions": {
+    "colorMeta": {
+      "action": { "role": "primary", "displayName": "Action blue", "tonalRamp": ["oklch(15% 0.04 255)", "oklch(26% 0.08 255)", "oklch(37% 0.12 255)", "oklch(48% 0.16 255)", "oklch(60% 0.17 255)", "oklch(72% 0.12 255)", "oklch(84% 0.07 255)", "oklch(95% 0.02 255)"] },
+      "action-hover": { "role": "primary", "displayName": "Deeper action blue", "tonalRamp": ["oklch(15% 0.04 255)", "oklch(26% 0.08 255)", "oklch(37% 0.12 255)", "oklch(48% 0.16 255)", "oklch(60% 0.17 255)", "oklch(72% 0.12 255)", "oklch(84% 0.07 255)", "oklch(95% 0.02 255)"] },
+      "canvas": { "role": "neutral", "displayName": "Silver canvas", "tonalRamp": ["oklch(15% 0.002 286)", "oklch(26% 0.004 286)", "oklch(37% 0.006 286)", "oklch(48% 0.008 286)", "oklch(60% 0.008 286)", "oklch(72% 0.006 286)", "oklch(84% 0.004 286)", "oklch(95% 0.002 286)"] },
+      "surface": { "role": "neutral", "displayName": "White surface", "tonalRamp": ["oklch(15% 0 0)", "oklch(26% 0 0)", "oklch(37% 0 0)", "oklch(48% 0 0)", "oklch(60% 0 0)", "oklch(72% 0 0)", "oklch(84% 0 0)", "oklch(95% 0 0)"] },
+      "ink": { "role": "neutral", "displayName": "Graphite ink", "tonalRamp": ["oklch(15% 0.002 286)", "oklch(26% 0.004 286)", "oklch(37% 0.006 286)", "oklch(48% 0.008 286)", "oklch(60% 0.008 286)", "oklch(72% 0.006 286)", "oklch(84% 0.004 286)", "oklch(95% 0.002 286)"] },
+      "muted": { "role": "neutral", "displayName": "Muted gray", "tonalRamp": ["oklch(15% 0.003 286)", "oklch(26% 0.006 286)", "oklch(37% 0.01 286)", "oklch(48% 0.013 286)", "oklch(60% 0.013 286)", "oklch(72% 0.01 286)", "oklch(84% 0.006 286)", "oklch(95% 0.003 286)"] },
+      "hairline": { "role": "neutral", "displayName": "Hairline gray", "tonalRamp": ["oklch(15% 0.002 286)", "oklch(26% 0.004 286)", "oklch(37% 0.006 286)", "oklch(48% 0.008 286)", "oklch(60% 0.008 286)", "oklch(72% 0.006 286)", "oklch(84% 0.004 286)", "oklch(95% 0.002 286)"] },
+      "secondary-hover": { "role": "neutral", "displayName": "Secondary hover gray", "tonalRamp": ["oklch(15% 0.002 286)", "oklch(26% 0.004 286)", "oklch(37% 0.006 286)", "oklch(48% 0.008 286)", "oklch(60% 0.008 286)", "oklch(72% 0.006 286)", "oklch(84% 0.004 286)", "oklch(95% 0.002 286)"] },
+      "navigation-track": { "role": "neutral", "displayName": "Workspace track gray", "tonalRamp": ["oklch(15% 0.002 286)", "oklch(26% 0.004 286)", "oklch(37% 0.006 286)", "oklch(48% 0.008 286)", "oklch(60% 0.008 286)", "oklch(72% 0.006 286)", "oklch(84% 0.004 286)", "oklch(95% 0.002 286)"] },
+      "selected": { "role": "primary", "displayName": "Pale blue selection", "tonalRamp": ["oklch(15% 0.01 255)", "oklch(26% 0.02 255)", "oklch(37% 0.03 255)", "oklch(48% 0.04 255)", "oklch(60% 0.04 255)", "oklch(72% 0.03 255)", "oklch(84% 0.02 255)", "oklch(95% 0.01 255)"] },
+      "table-row": { "role": "neutral", "displayName": "Quiet table stripe", "tonalRamp": ["oklch(15% 0.002 260)", "oklch(26% 0.004 260)", "oklch(37% 0.006 260)", "oklch(48% 0.008 260)", "oklch(60% 0.008 260)", "oklch(72% 0.006 260)", "oklch(84% 0.004 260)", "oklch(95% 0.002 260)"] },
+      "focus-border": { "role": "primary", "displayName": "Focus sky", "tonalRamp": ["oklch(15% 0.03 237)", "oklch(26% 0.06 237)", "oklch(37% 0.09 237)", "oklch(48% 0.12 237)", "oklch(60% 0.14 237)", "oklch(72% 0.11 237)", "oklch(84% 0.06 237)", "oklch(95% 0.02 237)"] },
+      "placeholder": { "role": "neutral", "displayName": "Placeholder gray", "tonalRamp": ["oklch(15% 0.003 286)", "oklch(26% 0.006 286)", "oklch(37% 0.01 286)", "oklch(48% 0.013 286)", "oklch(60% 0.013 286)", "oklch(72% 0.01 286)", "oklch(84% 0.006 286)", "oklch(95% 0.003 286)"] }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Tournament title", "purpose": "Responsive tournament overview heading." },
+      "headline": { "displayName": "Technical header", "purpose": "Compact application heading." },
+      "body": { "displayName": "System body", "purpose": "Vietnamese work content; Apple-first installed font stack." },
+      "label": { "displayName": "Action label", "purpose": "Buttons and workspace selection." }
+    },
+    "shadows": [
+      { "name": "card", "value": "0 2px 12px rgba(0, 0, 0, 0.04)", "purpose": "Quiet borderless white work surfaces." },
+      { "name": "header", "value": "0 1px 2px rgba(0, 0, 0, 0.04)", "purpose": "Application and recorder headers." },
+      { "name": "selected-segment", "value": "0 1px 3px rgb(0 0 0 / 7%)", "purpose": "Selected white workspace segment." },
+      { "name": "field-focus", "value": "0 0 0 3px rgb(14 165 233 / 15%)", "purpose": "Existing focused-field halo; keyboard outline remains separate." },
+      { "name": "projector-control-divider", "value": "inset 0 1px 0 #e5e5ea", "purpose": "Tonal separation of projector controls." }
+    ],
+    "motion": [
+      { "name": "control-transition", "value": "background-color 160ms ease-out, color 160ms ease-out, box-shadow 160ms ease-out", "purpose": "Button/link state changes without spatial animation." },
+      { "name": "reduced-motion", "value": "@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }", "purpose": "Respect reduced motion; does not change application polling or optional page-rotation timers." }
+    ],
+    "breakpoints": [
+      { "name": "compact-app-max", "value": "600px" },
+      { "name": "settings-fields-sm-min", "value": "40rem" },
+      { "name": "compact-projector-max", "value": "700px" },
+      { "name": "audit-snapshots-md-min", "value": "48rem" },
+      { "name": "stacked-results-max", "value": "900px" },
+      { "name": "setup-columns-xl-min", "value": "80rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Blue primary action, minimum 44px height and explicit keyboard outline.",
+      "html": "<button type=\"button\" class=\"ds-primary\">Tạo giải mới</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 18px;border:0;border-radius:4px;background:var(--color-action,#0066cc);color:#fff;font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter','Helvetica Neue',Helvetica,Arial,sans-serif);font-size:14px;font-weight:600;cursor:pointer;transition:background-color 160ms ease-out,color 160ms ease-out,box-shadow 160ms ease-out}.ds-primary:hover{background:#0055ad}.ds-primary:focus-visible{border-color:#0ea5e9;box-shadow:0 0 0 3px rgb(14 165 233 / 15%);outline:2px solid var(--color-action,#0066cc);outline-offset:3px}.ds-primary:disabled{cursor:not-allowed;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-primary{transition-duration:.01ms!important}}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Neutral secondary action used beside the result workflow.",
+      "html": "<button type=\"button\" class=\"ds-secondary\">Xử lý / Sửa kết quả</button>",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border:0;border-radius:4px;background:var(--color-canvas,#f5f5f7);color:var(--color-ink,#1d1d1f);font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter','Helvetica Neue',Helvetica,Arial,sans-serif);font-size:14px;font-weight:600;cursor:pointer;transition:background-color 160ms ease-out,color 160ms ease-out,box-shadow 160ms ease-out}.ds-secondary:hover{background:#e9e9ed}.ds-secondary:focus-visible{border-color:#0ea5e9;box-shadow:0 0 0 3px rgb(14 165 233 / 15%);outline:2px solid var(--color-action,#0066cc);outline-offset:3px}.ds-secondary:disabled{cursor:not-allowed;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-secondary{transition-duration:.01ms!important}}"
+    },
+    {
+      "name": "Board Search",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Phone search for board, accent-insensitive player name or explicit STT.",
+      "html": "<label class=\"ds-search\"><svg class=\"ds-search-icon\" aria-hidden=\"true\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input class=\"ds-search-field\" type=\"search\" inputmode=\"search\" aria-label=\"Tìm bàn đấu\" placeholder=\"Số bàn hoặc tên kỳ thủ\"/></label>",
+      "css": ".ds-search{position:relative;display:block;width:100%;max-width:390px}.ds-search-icon{position:absolute;top:50%;left:12px;transform:translateY(-50%);color:var(--color-muted,#62626a);pointer-events:none}.ds-search-field{box-sizing:border-box;width:100%;height:48px;padding:0 12px 0 40px;border:1px solid transparent;border-radius:4px;background:var(--color-canvas,#f5f5f7);color:var(--color-ink,#1d1d1f);font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter','Helvetica Neue',Helvetica,Arial,sans-serif);font-size:16px;accent-color:var(--color-action,#0066cc);caret-color:var(--color-action,#0066cc)}.ds-search-field::placeholder{color:#73737b}.ds-search-field:focus{outline:none;border-color:#0ea5e9;box-shadow:0 0 0 3px rgb(14 165 233 / 15%)}.ds-search-field:focus-visible{outline:2px solid var(--color-action,#0066cc);outline-offset:3px}"
+    },
+    {
+      "name": "Workspace Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-workspace",
+      "description": "Results/publication versus settings/import; selected state uses aria-pressed.",
+      "html": "<div class=\"ds-workspace\" role=\"group\" aria-label=\"Khu vực điều hành\"><button class=\"ds-workspace-item\" type=\"button\" aria-pressed=\"true\">Kết quả &amp; công bố</button><button class=\"ds-workspace-item\" type=\"button\" aria-pressed=\"false\">Thiết lập &amp; bốc thăm</button></div>",
+      "css": ".ds-workspace{display:flex;flex-wrap:wrap;gap:4px;padding:4px;width:fit-content;max-width:100%;border-radius:4px;background:#eaeaee}.ds-workspace-item{min-height:44px;padding:10px 18px;border:0;border-radius:3px;background:transparent;color:var(--color-muted,#62626a);font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter','Helvetica Neue',Helvetica,Arial,sans-serif);font-size:14px;font-weight:600;cursor:pointer;transition:background-color 160ms ease-out,color 160ms ease-out,box-shadow 160ms ease-out}.ds-workspace-item[aria-pressed=true]{background:#fff;color:var(--color-ink,#1d1d1f);box-shadow:0 1px 3px rgb(0 0 0 / 7%)}.ds-workspace-item:focus-visible{outline:2px solid var(--color-action,#0066cc);outline-offset:3px;box-shadow:0 0 0 3px rgb(14 165 233 / 15%)}@media(max-width:600px){.ds-workspace{width:100%}.ds-workspace-item{flex:1;padding-inline:8px}}@media(prefers-reduced-motion:reduce){.ds-workspace-item{transition-duration:.01ms!important}}"
+    },
+    {
+      "name": "Technical Board Card",
+      "kind": "card",
+      "refersTo": "board-card",
+      "description": "Administrative board summary; neutral surface, written dispute state and provisional score warning.",
+      "html": "<article class=\"ds-board\"><div class=\"ds-board-heading\"><h3 class=\"ds-board-title\">Vòng 2 · Bàn 29</h3><span class=\"ds-board-status\">Có bất đồng</span></div><div class=\"ds-board-players\"><div><span class=\"ds-piece ds-piece-white\" aria-hidden=\"true\"></span>Mai Tử Khang</div><div><span class=\"ds-piece ds-piece-black\" aria-hidden=\"true\"></span>Trần Đặng Gia Phước</div></div><p class=\"ds-board-result\">½ - ½ <span class=\"ds-board-warning\">Chưa chính thức</span></p></article>",
+      "css": ".ds-board{padding:22px;border:0;border-radius:2px;background:#fff;color:var(--color-ink,#1d1d1f);box-shadow:0 2px 12px rgba(0,0,0,.04);font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter','Helvetica Neue',Helvetica,Arial,sans-serif);font-size:16px;line-height:1.5;letter-spacing:-.011em}.ds-board-heading{display:flex;justify-content:space-between;gap:12px}.ds-board-title{margin:0;font-size:15px;font-weight:600}.ds-board-status{color:oklch(50.5% .213 27.518);font-size:14px;font-weight:600}.ds-board-players{display:grid;gap:8px;padding:14px 0 4px;font-weight:550}.ds-board-players>div{display:flex;align-items:center;gap:10px}.ds-piece{display:inline-block;flex-shrink:0;width:16px;height:16px;border:1px solid #e5e5ea;border-radius:50%}.ds-piece-white{background:#fff}.ds-piece-black{background:oklch(27.9% .041 260.031)}.ds-board-result{margin:12px 0 0;font-size:27px;font-weight:650;letter-spacing:-.04em;font-variant-numeric:tabular-nums}.ds-board-warning{font-size:12px;font-weight:400;letter-spacing:normal;color:oklch(47% .157 37.304)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Apple light",
+    "overview": "This records the user's pinned direction and the shipped implementation, not a new brand concept. A fixed light canvas, white work surfaces, graphite text and restrained blue actions keep Vietnamese names, boards and results readable in a bright tournament hall. Tournament logos and colors remain user-configured identity, not a replacement application palette.\n\nThe interface prioritizes correct-board operation and safe confirmation over decoration. Preserve the current copy, role boundaries, offline feedback and result workflow when extending it. Existing dark/semantic-color kiosk steps distinguish players and confirmation outcomes; they are functional exceptions within the light application, not an alternate theme.",
+    "keyCharacteristics": [
+      "Fixed Apple-light application chrome with system typography.",
+      "Small corners, soft separators and nearly flat white surfaces.",
+      "Data-first density, explicit status text and visible keyboard focus."
+    ],
+    "rules": [
+      { "name": "The Official-Only Rule", "body": "On the projector, show a score only for OFFICIAL; otherwise show the existing pending-state text. Never use color to imply a result is already published.", "section": "colors" }
+    ],
+    "dos": [
+      "Do retain the fixed light application, Apple-first font stack and blue-primary/gray-secondary action hierarchy.",
+      "Do keep written statuses, board/STT distinctions, confirmation steps and offline/sync feedback.",
+      "Do preserve keyboard outlines, responsive wrapping and the default 40-board/two-column projector overview.",
+      "Do honor saved projector settings and use only supplied tournament identity assets."
+    ],
+    "donts": [
+      "Don't introduce black borders, decorative gradients, large rounded cards or marketing imagery.",
+      "Don't publish provisional scores, calculate standings from imported points or remove safety steps to simplify a screen.",
+      "Don't treat intentional dense-name truncation as permission to clip scores, board numbers or the projector footer.",
+      "Don't replace the current copy, brand assets, API, roles or persistence model as a styling change."
+    ]
+  }
+}

@@ -71,6 +71,12 @@ Chuyển trạng thái hợp lệ:
     (số vòng nằm ở dòng dạng `"Ván 2 "`), bỏ dòng trống và 2 dòng bản quyền Swiss-Manager ở cuối.
   - Cột `STT` bên trái = `PlayerWhiteSNo`, cột `STT` bên phải = `PlayerBlackSNo` → lưu vào `Player.startNo`.
   - Tên trong .xls dạng `"Họ Tên"` (= `Lastname + " " + Firstname` của XML) → dùng để khớp với danh sách XML nếu đã nhập.
+- **Đầu vào 3 — bảng xếp hạng (tạm thời / chung cuộc):** file `.xls` "Xếp hạng" của Swiss-Manager, header
+  `['Hạng', 'STT', 'Tên', 'LĐ', 'CLB', 'Điểm', <hệ số phụ...>]` (nhận cả tiếng Anh Rk./SNo/Name/FED/Club/Pts.). Ô Hạng trống = đồng hạng
+  với dòng trên; cột sau "Điểm" là hệ số phụ; điểm/hệ số giữ nguyên chuỗi. Hệ thống **không tự tính hạng**.
+  Lưu bảng mới nhất mỗi giải ở model `Standings` (không ghi vào Tournament để không đổi `updatedAt`), nhập qua
+  `/api/tournaments/[id]/import/standings` (preview/commit + previewToken, thay bảng cũ cần confirmOverwrite). Projector có chế độ
+  `view=standings` (nút trên topbar, link `?view=standings`), dữ liệu đi trong payload `/live`.
 - **Đầu ra 1 — import lại Swiss-Manager:** XML UTF-8
   `<?xml version="1.0" encoding="UTF-8"?><Results><Result Round="X" PlayerWhiteSNo="Y" PlayerBlackSNo="Z" Res="..." /></Results>`,
   `Res` lấy theo bảng mã ở mục 3. Chỉ xuất ván `OFFICIAL`.

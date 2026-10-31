@@ -8,9 +8,11 @@ import { readyToPublish, toState, type TechnicalAction } from "@/lib/match-state
 import SyncStatus from "../components/SyncStatus";
 import TournamentSettings, { type TournamentConfig } from "./TournamentSettings";
 import PairingImport from "./PairingImport";
-import { ClipboardPen, Download, LogOut, Plus, Settings, Trash2, Users } from "lucide-react";
+import StandingsImport from "./StandingsImport";
+import { AlertTriangle, ChessKnight, CheckCheck, ClipboardPen, Download, LogOut, Plus, Settings, Trash2, Users } from "lucide-react";
+import { PieceDot } from "../record/ui";
 
-const button = "rounded-sm bg-slate-900 px-4 py-2 font-semibold text-white disabled:opacity-50";
+const button = "ui-primary disabled:opacity-50";
 const input = "rounded-sm border border-[#E5E5EA] bg-white px-3 py-2";
 const headerAction = "inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-sm px-4 text-sm font-semibold";
 type Board = ClientMatch & { round: number };
@@ -21,29 +23,30 @@ export default function TechnicalApp({ tournaments: initialTournaments, fullName
   const [tid, setTid] = useState(tournaments[0]?.id ?? "");
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [workspace, setWorkspace] = useState<"results" | "setup">("results");
   const current = tournaments.find((t) => t.id === tid);
-  const created = (t: TournamentConfig) => { setTournaments((ts) => [{ id: t.id, name: t.name }, ...ts]); setTid(t.id); setCreating(false); };
-  return <div className="min-h-dvh">
-    <header className="app-header flex flex-wrap items-center justify-between gap-4 px-6 py-4">
-      <div className="min-w-0"><h1 className="text-xl font-bold">Điều hành kỹ thuật</h1><p className="break-words text-sm text-slate-500">{fullName}</p></div>
-      <div role="group" aria-label="Quản lý giải đấu" className="flex w-full min-w-0 flex-wrap items-end gap-3 xl:w-auto">
-        {!!tournaments.length && <label className="flex w-full min-w-0 flex-col gap-1 text-sm font-semibold sm:w-auto">Giải đấu<select aria-label="Giải đấu" className={`${input} h-11 w-full sm:w-72`} value={tid} onChange={(e) => setTid(e.target.value)}>{tournaments.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>}
-        <button aria-label="+ Tạo giải mới" className={`${headerAction} bg-slate-900 text-white`} onClick={() => setCreating(true)}><Plus aria-hidden="true" size={18} className="shrink-0" />Tạo giải mới</button>
-        {current && <><button className={`${headerAction} border border-[#E5E5EA] bg-white`} onClick={() => { document.getElementById("tournament-settings")?.scrollIntoView({ behavior: "smooth", block: "start" }); document.querySelector<HTMLInputElement>('#tournament-settings input[name="name"]')?.focus({ preventScroll: true }); }}><Settings aria-hidden="true" size={18} className="shrink-0" />Cấu hình / Sửa giải</button><button className={`${headerAction} border border-[#E5E5EA] text-red-800`} onClick={() => setDeleting(true)}><Trash2 aria-hidden="true" size={18} className="shrink-0" />Xoá giải đấu</button></>}
-      </div>
+  const created = (t: TournamentConfig) => { setTournaments((ts) => [{ id: t.id, name: t.name }, ...ts]); setTid(t.id); setWorkspace("setup"); setCreating(false); };
+  return <div className="technical-shell min-h-dvh">
+    <header className="technical-header app-header">
+      <div className="flex min-w-0 items-center gap-3"><ChessKnight aria-hidden size={28} className="text-action" /><div className="min-w-0"><h1>Điều hành kỹ thuật</h1><p className="break-words text-sm text-slate-500">{fullName}</p></div></div>
       <nav className="flex flex-wrap items-center gap-2">{isAdmin && <a className={headerAction} href="/technical/users"><Users aria-hidden="true" size={18} className="shrink-0" />Quản lý tài khoản</a>}<a className={headerAction} href="/record"><ClipboardPen aria-hidden="true" size={18} className="shrink-0" />Ghi kết quả tại bàn</a><button className={headerAction} onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); location.href = "/login"; }}><LogOut aria-hidden="true" size={18} className="shrink-0" />Đăng xuất</button></nav>
     </header>
-    <main className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
-      {tid ? <TournamentDashboard key={tid} tid={tid} onRename={(t) => setTournaments((ts) => ts.map((x) => x.id === t.id ? { ...x, name: t.name } : x))} /> : <section className="app-card space-y-4 rounded-sm p-8 text-center"><h2 className="text-2xl font-bold">Chào mừng đến với USCC</h2><p className="text-slate-600">Chưa có giải đấu. Tạo giải đầu tiên để bắt đầu nhập bốc thăm và ghi kết quả.</p><button className={button} onClick={() => setCreating(true)}>Tạo giải đấu đầu tiên</button></section>}
+      <div role="group" aria-label="Quản lý giải đấu" className="tournament-bar">
+        {!!tournaments.length && <label className="flex w-full min-w-0 flex-col gap-1 text-sm font-semibold sm:w-auto">Giải đấu<select aria-label="Giải đấu" className={`${input} h-11 w-full sm:w-72`} value={tid} onChange={(e) => setTid(e.target.value)}>{tournaments.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>}
+        <button aria-label="+ Tạo giải mới" className={`${headerAction} bg-action text-white`} onClick={() => setCreating(true)}><Plus aria-hidden="true" size={18} className="shrink-0" />Tạo giải mới</button>
+        {current && <><button className={`${headerAction} bg-[#F5F5F7]`} onClick={() => { setWorkspace("setup"); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#tournament-settings input[name="name"]')?.focus()); }}><Settings aria-hidden="true" size={18} className="shrink-0" />Cấu hình / Sửa giải</button><button className={`${headerAction} text-red-800`} onClick={() => setDeleting(true)}><Trash2 aria-hidden="true" size={18} className="shrink-0" />Xoá giải đấu</button></>}
+      </div>
+    <main className="dashboard-main space-y-3">
+      {tid ? <TournamentDashboard key={tid} tid={tid} workspace={workspace} setWorkspace={setWorkspace} onRename={(t) => setTournaments((ts) => ts.map((x) => x.id === t.id ? { ...x, name: t.name } : x))} /> : <section className="empty-state app-card"><ChessKnight aria-hidden size={42} /><h2 className="text-2xl font-semibold text-ink">Chào mừng đến với USCC</h2><p>Chưa có giải đấu. Tạo giải đầu tiên để bắt đầu nhập bốc thăm và ghi kết quả.</p><button className={button} onClick={() => setCreating(true)}>Tạo giải đấu đầu tiên</button></section>}
     </main>
     {creating && <Modal label="Tạo giải đấu mới" onClose={() => setCreating(false)}><TournamentSettings onSaved={created} onCancel={() => setCreating(false)} /></Modal>}
     {deleting && current && <DeleteTournament tournament={current} onCancel={() => setDeleting(false)} onDeleted={() => { const remaining = tournaments.filter((t) => t.id !== tid); setTournaments(remaining); setTid(remaining[0]?.id ?? ""); setDeleting(false); }} />}
   </div>;
 }
 
-function TournamentDashboard({ tid, onRename }: { tid: string; onRename: (t: TournamentConfig) => void }) {
+function TournamentDashboard({ tid, onRename, workspace, setWorkspace }: { tid: string; onRename: (t: TournamentConfig) => void; workspace: "results" | "setup"; setWorkspace: (value: "results" | "setup") => void }) {
   const { data, lastSync, error, updateTournament } = useLiveTournament(tid);
-  const [tab, setTab] = useState("attention");
+  const [tab, setTab] = useState("all");
   const [round, setRound] = useState(0);
   const [reconcile, setReconcile] = useState(false);
   const [selected, setSelected] = useState<Board | null>(null);
@@ -74,19 +77,23 @@ function TournamentDashboard({ tid, onRename }: { tid: string; onRename: (t: Tou
     finally { setPublishing(false); }
   }
   return <>
-    <div className="app-card sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-sm p-4" style={{ borderTop: `3px solid ${t?.primaryColor ?? "#38bdf8"}` }}>
-      <div><h2 className="text-xl font-bold">{t?.name ?? "Đang tải giải..."}</h2><p className="text-sm text-slate-500">{boards.filter((m) => m.status === "OFFICIAL").length}/{boards.length} bàn chính thức · {attention.length} cần xử lý</p></div>
-      <SyncStatus lastSync={lastSync} error={error} timezone={t?.timezone ?? "Asia/Ho_Chi_Minh"} />
+    <div className="dashboard-overview">
+      <div><h2>{t?.name ?? "Đang tải giải..."}</h2><p className="text-sm text-slate-500">{boards.filter((m) => m.status === "OFFICIAL").length}/{boards.length} bàn chính thức · {attention.length} cần xử lý</p></div>
+      <div className="flex flex-wrap items-center gap-3"><SyncStatus lastSync={lastSync} error={error} timezone={t?.timezone ?? "Asia/Ho_Chi_Minh"} />
       <a className={button} href={`/projector/${tid}`} target="_blank" rel="noopener noreferrer">Mở màn hình trình chiếu ↗</a>
+      <a className="ui-secondary" href={`/projector/${tid}?view=standings`} target="_blank" rel="noopener noreferrer">Chiếu bảng xếp hạng ↗</a>
+      </div>
     </div>
-    <div id="tournament-settings"><TournamentSettings tid={tid} onSaved={(t) => { updateTournament(t); onRename(t); }} /></div>
-    <PairingImport tid={tid} />
-    {(ready.length > 0 || publishMessage) && <section className="app-card space-y-2 rounded-sm p-4"><p className="font-semibold text-sky-900">{ready.length} bàn đủ xác nhận, chờ TTKT duyệt công bố</p><button disabled={publishing || !ready.length} className={button} onClick={() => void publish(ready)}>Duyệt nhanh tất cả bàn đã đủ xác nhận</button>{publishMessage && <p role="status">{publishMessage}</p>}</section>}
-    <div className="flex flex-wrap gap-3" role="group" aria-label="Chế độ xem">
-      {[{ id: "attention", label: `⚠ Cần xử lý (${attention.length})` }, { id: "all", label: "Tất cả bàn" }, { id: "audit", label: "Lịch sử toàn giải" }].map((x) => <button key={x.id} aria-pressed={tab === x.id} onClick={() => setTab(x.id)} className={`rounded-sm border border-[#E5E5EA] px-4 py-3 font-bold ${tab === x.id ? x.id === "attention" ? "bg-orange-100 text-orange-900" : "bg-slate-900 text-white" : "bg-white"}`}>{x.label}</button>)}
-    </div>
-    <section aria-labelledby="export-title" className="app-card space-y-3 rounded-sm p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="export-title" className="text-lg font-bold">Xuất kết quả</h2><label className="flex items-center gap-3">Vòng <select aria-label="Vòng" className={input} value={round} onChange={(e) => setRound(Number(e.target.value))}><option value={0}>Toàn giải</option>{data?.rounds.map((r) => <option key={r.number} value={r.number}>Vòng {r.number}</option>)}</select></label></div>
+    <div className="workspace-nav" role="group" aria-label="Khu vực điều hành"><button aria-pressed={workspace === "results"} onClick={() => setWorkspace("results")}>Kết quả & công bố</button><button aria-pressed={workspace === "setup"} onClick={() => setWorkspace("setup")}>Thiết lập & bốc thăm</button></div>
+    <div hidden={workspace !== "setup"} className="grid gap-6 xl:grid-cols-[1.5fr_1fr]"><div id="tournament-settings" className="settings-area"><TournamentSettings tid={tid} onSaved={(t) => { updateTournament(t); onRename(t); }} /></div><div className="grid content-start gap-6"><PairingImport tid={tid} /><StandingsImport tid={tid} /></div></div>
+    <div hidden={workspace !== "results"} className="results-view">
+    {(ready.length > 0 || publishMessage) && <section className="publication-callout app-card space-y-2 rounded-sm p-4"><p className="font-semibold text-sky-900">{ready.length} bàn đủ xác nhận, chờ TTKT duyệt công bố</p><button disabled={publishing || !ready.length} className={button} onClick={() => void publish(ready)}>Duyệt nhanh tất cả bàn đã đủ xác nhận</button>{publishMessage && <p role="status">{publishMessage}</p>}</section>}
+    <div className="flex flex-wrap items-center gap-3"><div className="workspace-nav" role="group" aria-label="Chế độ xem">
+      {[{ id: "all", label: "Tất cả bàn" }, { id: "attention", label: `Cần xử lý (${attention.length})` }, { id: "audit", label: "Lịch sử toàn giải" }].map((x) => <button key={x.id} aria-pressed={tab === x.id} className={x.id === "attention" ? "tab-attention" : undefined} onClick={() => setTab(x.id)}>{x.id === "attention" && <AlertTriangle aria-hidden size={16} className="mr-2 inline" />}{x.label}</button>)}
+    </div><label className="round-filter">Vòng <select aria-label="Vòng" className={input} value={round} onChange={(e) => setRound(Number(e.target.value))}><option value={0}>Toàn giải</option>{data?.rounds.map((r) => <option key={r.number} value={r.number}>Vòng {r.number}</option>)}</select></label></div>
+    <div className="results-columns">
+    <section aria-labelledby="export-title" className="results-toolbar app-card space-y-4 rounded-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="export-title" className="text-lg font-bold">Xuất kết quả</h2><span className="text-sm text-muted">{round ? `Vòng ${round}` : "Toàn giải"}</span></div>
       <p className="text-sm text-slate-600">XML chỉ xuất kết quả chính thức (OFFICIAL); các bàn chưa chốt không nằm trong file. Excel theo {round ? `Vòng ${round}` : "toàn giải"}, không phụ thuộc tab danh sách đang xem.</p>
       <div className="flex flex-wrap gap-3">
         {data?.rounds.filter((r) => !round || r.number === round).map((r) => <a key={r.number} download className={`${button} inline-flex items-center gap-2`} href={`/api/tournaments/${tid}/rounds/${r.number}/export-xml`}><Download aria-hidden="true" size={18} className="shrink-0" />{round ? `Xuất XML Swiss-Manager (Vòng ${r.number})` : `Xuất XML Vòng ${r.number}`}</a>)}
@@ -94,17 +101,18 @@ function TournamentDashboard({ tid, onRename }: { tid: string; onRename: (t: Tou
       </div>
       <div className="flex flex-wrap items-end gap-3"><label className="flex min-w-0 flex-col gap-1 text-sm font-semibold">Nội dung Excel<select aria-label="Nội dung Excel" className={`${input} max-w-full`} value={reconcile ? "reconcile" : "official"} onChange={(e) => setReconcile(e.target.value === "reconcile")}><option value="official">Chỉ kết quả chính thức (Mặc định)</option><option value="reconcile">Xuất kèm danh sách đang chờ / bất đồng để đối soát</option></select></label><a download className={`${button} inline-flex items-center gap-2`} href={excelUrl}><Download aria-hidden="true" size={18} className="shrink-0" />Xuất Excel (.xlsx)</a></div>
     </section>
-    {tab === "audit" ? <AuditHistory key={tid} tid={tid} timezone={t?.timezone ?? "Asia/Ho_Chi_Minh"} /> : <>
-      <div className="grid gap-4 lg:grid-cols-2">{visible.map((m) => <article key={m.id} className="app-card space-y-3 rounded-sm p-5">
-        <div className="flex justify-between gap-3"><h3 className="text-lg font-bold">Vòng {m.round} · Bàn {m.board}</h3><span className={m.status === "DISPUTED" ? "font-semibold text-red-700" : "text-slate-600"}>{STATUS_LABEL[m.status]}</span></div>
-        <p>○ {m.white.fullName} <span className="text-slate-400">—</span> ● {m.black?.fullName ?? "Miễn đấu"}</p>
-        <p className="text-xl font-bold">{m.result ? RESULT_DISPLAY[m.result].score : "Chưa có kết quả"} {m.status !== "OFFICIAL" && m.result && <span className="text-sm font-normal text-orange-800">(Chưa chính thức)</span>}</p>
+    <div className="results-list">{tab === "audit" ? <AuditHistory key={tid} tid={tid} timezone={t?.timezone ?? "Asia/Ho_Chi_Minh"} /> : <>
+      <div className="grid gap-4">{visible.map((m) => <article key={m.id} className="technical-board app-card space-y-3 rounded-sm">
+        <div className="flex justify-between gap-3"><h3 className="font-semibold">Vòng {m.round} · Bàn {m.board}</h3><span className={m.status === "DISPUTED" ? "text-sm font-semibold text-red-700" : "text-sm text-slate-600"}>{STATUS_LABEL[m.status]}</span></div>
+        <div className="technical-players"><div className="technical-player"><PieceDot side="WHITE" />{m.white.fullName}</div><div className="technical-player"><PieceDot side="BLACK" />{m.black?.fullName ?? "Miễn đấu"}</div></div>
+        <p className="technical-result tabular-nums">{m.result ? RESULT_DISPLAY[m.result].score : "—"} {m.status !== "OFFICIAL" && m.result && <span className="text-xs font-normal tracking-normal text-orange-800">Chưa chính thức</span>}</p>
         {m.exceptionReason && <p className="rounded-sm bg-orange-50 p-3 text-orange-900">Yêu cầu ngoại lệ: {m.exceptionReason}</p>}
         {readyToPublish(toState(m)) && <div className="space-y-2 rounded-sm bg-sky-50 p-3"><p>Đã đủ xác nhận kỳ thủ — chờ duyệt công bố</p><button disabled={publishing} className={button} onClick={() => void publish([m])}>Duyệt công bố</button></div>}
-        <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setSelected(m)}>Xử lý / Sửa kết quả</button><button className={`${input} font-semibold`} onClick={() => setHistory(m)}>Lịch sử bàn</button></div>
+        <div className="technical-board-actions flex flex-wrap gap-2"><button className="ui-secondary" onClick={() => setSelected(m)}>Xử lý / Sửa kết quả</button><button className="px-3 text-sm font-semibold text-action" onClick={() => setHistory(m)}>Lịch sử bàn</button></div>
       </article>)}</div>
-      {!visible.length && <p className="app-card rounded-sm p-10 text-center text-slate-500">{data ? "Không có bàn nào trong danh sách này." : "Đang tải dữ liệu..."}</p>}
-    </>}
+      {!visible.length && <div className="app-card empty-state"><CheckCheck aria-hidden size={30} /><p>{data ? "Không có bàn nào trong danh sách này." : "Đang tải dữ liệu..."}</p></div>}
+    </>}</div></div>
+    </div>
     {selected && <EditDialog match={selected} onClose={() => setSelected(null)} />}
     {history && <Modal label="Lịch sử bàn" onClose={() => setHistory(null)}><div className="mb-4 flex justify-between"><h2 className="text-xl font-bold">Lịch sử vòng {history.round} · bàn {history.board}</h2><button className={button} autoFocus onClick={() => setHistory(null)}>Đóng</button></div><AuditHistory tid={tid} matchId={history.id} timezone={t?.timezone ?? "Asia/Ho_Chi_Minh"} /></Modal>}
   </>;

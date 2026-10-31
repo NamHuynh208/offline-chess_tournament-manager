@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as XLSX from "xlsx";
 import { XMLParser } from "fast-xml-parser";
-import { buildResultsWorkbook, buildResultsXml, nameKey, parsePairingSheet, parsePlayersXml, type ExportMatch } from "../src/lib/swiss-manager";
+import { buildResultsWorkbook, buildResultsXml, nameKey, parsePairingSheet, parsePlayersXml, parseStandingsSheet, type ExportMatch } from "../src/lib/swiss-manager";
+import { parseProjectorSettings } from "../src/lib/projector";
 import { RESULT_FROM_CODE } from "../src/lib/results";
 
 const sample = (f: string) => readFileSync(new URL(`../samples/${f}`, import.meta.url));
@@ -110,6 +111,34 @@ test("Excel: 1 sheet / trạng thái, có thông tin giải + dữ liệu ván",
   assert.equal(rows.length, 6 + 3);
   assert.deepEqual(rows[6], [1, 1, 1, "", "W0", "", "1/2", 41, "", "B0", "", "Chính thức"]);
   assert.equal(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets["Có bất đồng"], { header: 1 }).length, 6 + 1);
+});
+
+// 6. Bảng xếp hạng Swiss-Manager
+test("XLS xếp hạng: tiêu đề/ván, 80 kỳ thủ, đồng hạng kế thừa hạng dòng trên, cột phụ BH:GP, bỏ dòng bản quyền", () => {
+  const s = parseStandingsSheet(sample("Xếp hạng tạm thời-chung cuộc xuất ra..xls"));
+  assert.deepEqual(s.errors, []);
+  assert.equal(s.title, "Xếp hạng sau ván 1");
+  assert.equal(s.round, 1);
+  assert.deepEqual(s.tiebreakLabels, ["BH:GP"]);
+  assert.equal(s.rows.length, 80);
+  assert.deepEqual(s.rows[0], { row: 6, rank: 1, startNo: 1, name: "Bạch Triều Vĩ", federation: "VIE", club: "IUC", points: "1", tiebreaks: ["0"] });
+  assert.equal(s.rows[1].rank, 1); // ô Hạng trống = đồng hạng
+  assert.deepEqual(s.rows.at(-1), { row: 85, rank: 42, startNo: 79, name: "Văn Huy Tài", federation: "VIE", club: "FPT", points: "0", tiebreaks: ["1"] });
+  assert.ok(s.rows.every((r, i) => i === 0 || r.rank >= s.rows[i - 1].rank));
+});
+test("XLS xếp hạng: báo lỗi dòng/cột (hạng đầu trống, điểm sai, trùng STT) và tiêu đề tiếng Anh", () => {
+  const bad = parseStandingsSheet(sheetBytes([["Hạng", "STT", "Tên", "Điểm"], ["", 1, "A", "1"], [2, 2, "B", "x"], [3, 2, "C", "1½"]]));
+  assert.deepEqual(bad.errors.map((e) => [e.row, e.column]), [[2, "A (Hạng)"], [3, "D (Điểm)"], [4, "B (STT)"]]);
+  const en = parseStandingsSheet(sheetBytes([["Final ranking after round 7"], ["Rk.", "SNo", "Name", "FED", "Club", "Pts.", "TB1", "TB2"], [1, 4, "D", "VIE", "X", "6½", "30", "25"]]));
+  assert.deepEqual([en.round, en.tiebreakLabels, en.rows[0].points], [7, ["TB1", "TB2"], "6½"]);
+  assert.match(parseStandingsSheet(sheetBytes([["Bàn", "White"]])).errors[0].message, /tiêu đề bảng xếp hạng/);
+});
+test("Projector: chế độ xem chỉ nhận boards/standings từ localStorage", () => {
+  assert.equal(parseProjectorSettings({ view: "standings" }).view, "standings");
+  assert.equal(parseProjectorSettings({ view: "<script>" }).view, "boards");
+  assert.equal(parseProjectorSettings({}).standingsPerPage, 80);
+  assert.equal(parseProjectorSettings({ standingsPerPage: 40 }).standingsPerPage, 40);
+  assert.equal(parseProjectorSettings({ standingsPerPage: 1e9 }).standingsPerPage, 80);
 });
 
 console.log("\nTất cả kiểm thử đều PASS");

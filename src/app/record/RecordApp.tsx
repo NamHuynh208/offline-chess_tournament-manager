@@ -1,13 +1,14 @@
 "use client";
 // Màn hình tra cứu bàn đấu của Trọng tài ghi kết quả (FR-03) + hàng đợi offline
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, LogOut, RefreshCw, Search, WifiOff } from "lucide-react";
-import type { MatchStatus } from "@prisma/client";
+import { AlertTriangle, ArrowLeft, CheckCheck, Clock3, LogOut, RefreshCw, Search, WifiOff } from "lucide-react";
+import type { MatchStatus, Role } from "@prisma/client";
 import type { ClientMatch } from "@/lib/matches";
 import { applyAction, toState, type RecorderAction } from "@/lib/match-state";
 import { loadQueue, newOpId, saveQueue, type QueuedOp } from "@/lib/offline-queue";
 import { RESULT_DISPLAY } from "@/lib/results";
 import { defaultTournament } from "@/lib/tournament-selection";
+import { matchSearch } from "@/lib/match-search";
 import ResultFlow from "./ResultFlow";
 import { ConfirmMarks, PlayerLine, StatusBadge, textOn } from "./ui";
 
@@ -20,9 +21,6 @@ const FILTERS: { label: string; has: (s: MatchStatus) => boolean }[] = [
   { label: "Có bất đồng", has: (s) => s === "DISPUTED" },
   { label: "Chính thức", has: (s) => s === "OFFICIAL" },
 ];
-
-// tìm không dấu: "nguyen" khớp "Nguyễn"
-const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase();
 
 /** Áp các thao tác còn trong hàng đợi lên dữ liệu server để màn hình phản ánh đúng những gì đã bấm trên máy */
 const withQueue = (ms: ClientMatch[], q: QueuedOp[]) =>
@@ -56,7 +54,7 @@ async function sendOp(op: QueuedOp): Promise<SendResult> {
   return res.ok ? { kind: "ok", match: body.match } : { kind: "rejected", error: body.error ?? `Lỗi ${res.status}`, match: body.match };
 }
 
-export default function RecordApp({ user, tournaments }: { user: { id: string; fullName: string }; tournaments: Tournament[] }) {
+export default function RecordApp({ user, tournaments }: { user: { id: string; fullName: string; role: Role }; tournaments: Tournament[] }) {
   const [tid, setTid] = useState(() => defaultTournament(tournaments)?.id ?? "");
   const t = tournaments.find((x) => x.id === tid);
   const [round, setRound] = useState(t?.rounds.at(-1) ?? 0);
@@ -180,30 +178,25 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
   }
 
   const visible = useMemo(() => {
-    const q = fold(query.trim());
-    const n = /^\d+$/.test(q) ? Number(q) : null;
-    return matches.filter(
-      (m) =>
-        FILTERS[filter].has(m.status) &&
-        (!q ||
-          (n !== null
-            ? m.board === n || m.white.startNo === n || m.black?.startNo === n
-            : [m.white.fullName, m.black?.fullName ?? ""].some((s) => fold(s).includes(q)))),
-    );
+    return matches.filter((m) => FILTERS[filter].has(m.status) && matchSearch(m, query)).sort((a, b) => {
+      const n = Number(query.trim());
+      return query.trim() && Number.isInteger(n) ? Number(b.board === n) - Number(a.board === n) : 0;
+    });
   }, [matches, query, filter]);
 
   const failed = queue[0]?.error ? queue[0] : null;
   const brand = t?.primaryColor ?? "#38bdf8";
 
   return (
-    <div className="mx-auto min-h-dvh max-w-xl pb-24">
-      <header className="app-header sticky top-0 z-20">
-        <div className="h-1.5" style={{ background: brand }} />
+    <div className="record-app mx-auto min-h-dvh max-w-2xl pb-12">
+      <header className="record-header app-header sticky top-0 z-20">
+        <div className="h-1" style={{ background: brand }} />
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
-            <div className="truncate font-bold">{t?.name ?? "Chưa có giải"}</div>
-            <div className="truncate text-sm text-slate-500">{user.fullName}</div>
+            <div className="truncate text-lg font-semibold tracking-tight">{t?.name ?? "Chưa có giải"}</div>
+            <div className="mt-0.5 truncate text-sm text-slate-500">Ghi kết quả tại bàn · {user.fullName}</div>
           </div>
+          {user.role !== "RECORDING_ARBITER" && <a href="/technical" className="ui-secondary h-10 px-3" aria-label="Quay lại giao diện kỹ thuật"><ArrowLeft aria-hidden size={18} /><span className="sm:hidden">Kỹ thuật</span><span className="hidden sm:inline">Giao diện kỹ thuật</span></a>}
           <button onClick={logout} aria-label="Đăng xuất" className="flex size-12 items-center justify-center rounded-sm text-slate-600 active:bg-slate-100">
             <LogOut size={22} />
           </button>
@@ -265,7 +258,7 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
               ))}
             </select>
           )}
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4" role="group" aria-label="Vòng đấu">
+          <div className="round-switch -mx-4 flex gap-2 overflow-x-auto px-4" role="group" aria-label="Vòng đấu">
             {t?.rounds.map((n) => (
               <button
                 key={n}
@@ -278,19 +271,20 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
               </button>
             ))}
           </div>
-          <label className="relative block">
+          <label className="record-search relative block">
             <Search size={20} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               type="search"
               inputMode="search"
-              placeholder="Số bàn, tên hoặc STT kỳ thủ"
+              placeholder="Số bàn hoặc tên kỳ thủ"
               aria-label="Tìm bàn đấu"
               className="h-12 w-full rounded-sm border border-[#E5E5EA] bg-white pr-3 pl-10 text-base"
             />
           </label>
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4" role="group" aria-label="Lọc trạng thái">
+          <p className="-mt-1 text-xs text-slate-500">Tìm nhanh: 12 hoặc Bàn 12 · Tên có/không dấu · STT 12</p>
+          <div className="record-filters -mx-4 flex gap-2 overflow-x-auto px-4" role="group" aria-label="Lọc trạng thái">
             {FILTERS.map((f, i) => (
               <button
                 key={f.label}
@@ -305,7 +299,8 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
         </div>
       </header>
 
-      <main className="flex flex-col gap-3 px-4 pt-3">
+      <main className="flex flex-col gap-3 px-4 pt-5">
+        {!!t?.rounds.length && <div className="flex items-center justify-between gap-3 pb-1 text-sm"><h1 className="font-semibold">Bàn đấu · Vòng {round}</h1><span className="text-slate-500">{visible.length} / {matches.length} bàn</span></div>}
         {!t?.rounds.length ? (
           <p className="py-10 text-center text-slate-500">Chưa có vòng đấu nào được nhập.</p>
         ) : loadState === "error" && !serverMatches.length ? (
@@ -318,16 +313,16 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
         ) : loadState === "loading" && !serverMatches.length ? (
           <p className="py-10 text-center text-slate-500">Đang tải...</p>
         ) : !visible.length ? (
-          <p className="py-10 text-center text-slate-500">Không có bàn nào phù hợp.</p>
+          <div className="empty-state"><Search aria-hidden size={28} /><p>Không có bàn nào phù hợp.</p><button className="ui-secondary" onClick={() => { setQuery(""); setFilter(0); }}>Xóa tìm kiếm và bộ lọc</button></div>
         ) : (
           visible.map((m) => (
             <button
               key={m.id}
               onClick={() => setSelectedId(m.id)}
-              className="app-card flex flex-col gap-2.5 rounded-sm p-4 text-left active:bg-slate-50"
+              className="record-match app-card flex flex-col gap-3 rounded-sm p-5 text-left active:bg-slate-50"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xl font-bold">Bàn {m.board}</span>
+                <span className="text-lg font-semibold tabular-nums">Bàn {m.board}</span>
                 <StatusBadge status={m.status} />
               </div>
               <div className="flex items-center gap-3">
@@ -335,15 +330,16 @@ export default function RecordApp({ user, tournaments }: { user: { id: string; f
                   <PlayerLine side="WHITE" p={m.white} />
                   <PlayerLine side="BLACK" p={m.black} />
                 </div>
-                <div className="shrink-0 text-right text-2xl font-bold tabular-nums">{m.result ? RESULT_DISPLAY[m.result].score : "–"}</div>
+                <div className="record-score shrink-0 text-right text-2xl font-semibold tabular-nums">{m.result ? RESULT_DISPLAY[m.result].score : "—"}</div>
               </div>
               <ConfirmMarks m={m} />
-              {queue.some((o) => o.matchId === m.id) && <div className="text-sm font-semibold text-amber-700">⏳ Chưa đồng bộ lên máy chủ</div>}
+              {queue.some((o) => o.matchId === m.id) && <div className="flex items-center gap-2 text-sm font-semibold text-amber-700"><Clock3 aria-hidden size={16} />Chưa đồng bộ lên máy chủ</div>}
               {m.exceptionReason && <div className="text-sm text-amber-800">Đã yêu cầu duyệt ngoại lệ: {m.exceptionReason}</div>}
             </button>
           ))
         )}
       </main>
+      {!queue.length && !authLost && <p className="flex items-center justify-center gap-2 px-4 pt-6 text-xs text-slate-500"><CheckCheck aria-hidden size={16} />Kết quả chính thức sau khi hoàn tất xác nhận và đồng bộ.</p>}
 
       {selected && (
         <ResultFlow

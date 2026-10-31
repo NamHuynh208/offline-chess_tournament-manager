@@ -11,7 +11,7 @@ npm run test:acceptance
 ```
 
 - `test:acceptance` chạy `npm run build` trước, rồi production server ở cổng tạm, áp migrations vào SQLite tạm và tạo 2 tài khoản test với mật khẩu ngẫu nhiên. Không dùng/ghi dữ liệu giải trong DB dev.
-- `tests/acceptance/prd.spec.ts`: 19 test (10 tiêu chí PRD + hồi quy): quản lý tài khoản, DB trống/tạo/chuyển/xóa, duyệt công bố, export UI thật, offline/audit, projector Light 40–43 bàn và lưu cấu hình. Không skip/expected failure.
+- `tests/acceptance/prd.spec.ts`: 21 test (10 tiêu chí PRD + hồi quy): tra cứu đủ40bàn bằng số/tiền tố/tên, quản lý tài khoản/phân quyền, export UI thật, offline/audit, projector40–43bàn/responsive và screenshots desktop/mobile. Không skip/expected failure.
 - Tiêu chí 6 đo thời gian từ lúc bắt đầu xác nhận đến khi DOM projector có tỷ số, không reload; kèm kiểm tra Dashboard, phân quyền, mất mạng, đồng bộ lại, phân trang/carousel.
 - XML được so sánh từng byte qua HTTP. File XLS hiện tại ghi vòng 1; dataset các test thường dùng override vòng 2, riêng test XML dùng vòng 1. Không chỉnh sửa file mẫu kỳ vọng.
 - Kết quả: `test-results/acceptance.json`, `playwright-report/index.html`, log server và screenshot/trace khi thất bại. Xem bằng `npx playwright show-report`.
@@ -59,7 +59,9 @@ npx prisma generate
 - Projector nền trắng/xám nhạt, chữ tối, điểm nhấn màu giải và tỷ số có chữ đen/trắng theo tương phản. Khung 100dvh không cuộn trang, lưới tự chia đều chiều cao và thu cỡ chữ theo số dòng/cột; tên dài tối đa 2 dòng và có tooltip tên đầy đủ.
 - Thanh điều khiển có nút Ẩn/Hiện: ratio Auto/16:9/16:10/4:3 (fit vào vùng trình chiếu còn lại, không kéo méo/cắt), scale 75–125%, chia theo 1–4 trang hoặc 10/16/20/24/30/40 bàn/trang, 1–4 cột, trang cố định hoặc tự lật sau 5/10/15/20 giây, Fullscreen API/F11.
 - Cấu hình lưu theo giải trong localStorage, gồm vòng/trang/cỡ hiển thị/ẩn điều khiển. Chọn trang cố định tắt auto; khi bớt bàn thì trang hiện tại được giới hạn lại. Storage sai được kiểm tra/fallback, storage bị chặn thì vẫn dùng phiên hiện tại.
-- Mặc định 20 bàn/trang, 2 cột, tự lật 10 giây. Chế độ vừa khít ưu tiên hiện đủ mọi bàn nên rất nhiều bàn/cột trên màn hình nhỏ sẽ giảm chữ; chọn ít bàn hơn hoặc bật **Cho phép cuộn dọc (giữ chữ lớn)** để giữ cỡ chữ. Dữ liệu/điểm/kết quả OFFICIAL và quyền TTKT giữ nguyên.
+- Mặc định **40 bàn/trang, 2 cột, không tự lật** theo lựa chọn xem toàn vòng; cấu hình đã lưu trên máy vẫn được giữ. Chế độ vừa khít thu chữ theo số bàn/cột, chọn ít bàn hơn hoặc bật cuộn để giữ cỡ chữ. OFFICIAL-only giữ nguyên; điểm đầu vòng nhẹ hơn tỷ số chính thức.
+- Thiết kế hệ thống Apple light được ghi trong PRODUCT.md/DESIGN.md, token thực ở globals.css. TTKT có workspace **Kết quả & công bố** và **Thiết lập & bốc thăm**; cấu hình/import vẫn đầy đủ, nút Cấu hình mở đúng workspace. Tạo giải xong chuyển setup nhập bốc thăm ngay.
+- Trên /record nhập `12` để tìm số bàn/STT (bàn12 ưu tiên lên đầu), `Bàn 12`/`ban12`/`#12` để chỉ lấy bàn12, `STT 12` để tìm số thứ tự. Tên có/không dấu đều hỗ trợ; nút xóa tìm kiếm/bộ lọc phục hồi danh sách.
 
 First, run the development server:
 

@@ -1,6 +1,6 @@
 import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { PrismaClient, type ResultType } from "@prisma/client";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as XLSX from "xlsx";
 import { XMLParser } from "fast-xml-parser";
@@ -81,6 +81,9 @@ async function official(api: APIRequestContext, m: ClientMatch, result: ResultTy
 async function loginPage(page: Page, api: APIRequestContext, path: string) {
   await page.context().addCookies((await api.storageState()).cookies); await page.goto(path);
 }
+async function openSetup(page: Page) {
+  await page.getByRole("button", { name: "Thiết lập & bốc thăm", exact: true }).click();
+}
 
 test("00 — DB trống: tạo giải đầu tiên/thứ hai, tự chọn giải mới, chuyển giải TTKT và trọng tài ghi", async ({ page, tech, recorder }) => {
   expect(await db.tournament.count()).toBe(0); // runner tạo DB test sạch; không xóa dữ liệu của test khác
@@ -96,7 +99,10 @@ test("00 — DB trống: tạo giải đầu tiên/thứ hai, tự chọn giải
   const colorPicker = dialog.getByLabel("Màu sắc nhận diện", { exact: true });
   await expect(colorPicker).toHaveCSS("border-color", "rgb(229, 229, 234)");
   await colorPicker.focus();
-  await expect(colorPicker).toHaveCSS("outline-style", "none");
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(colorPicker).toHaveCSS("outline-style", "solid");
+  await expect(colorPicker).toHaveCSS("outline-color", "rgb(0, 102, 204)");
   await expect(colorPicker).toHaveCSS("border-color", "rgb(14, 165, 233)");
   await expect(colorPicker).toHaveCSS("box-shadow", "rgba(14, 165, 233, 0.15) 0px 0px 0px 3px");
   await dialog.getByRole("textbox", { name: "Tên giải", exact: true }).fill("USCC Open");
@@ -113,7 +119,7 @@ test("00 — DB trống: tạo giải đầu tiên/thứ hai, tự chọn giải
   await expect(page.getByRole("combobox", { name: "Giải đấu" })).toHaveValue(first.id);
   await expect(page.getByRole("heading", { name: "Nhập bốc thăm", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "USCC Open", exact: true })).toBeVisible();
-  for (const card of await page.locator("section.app-card").all()) {
+  for (const card of await page.locator("section.app-card:visible").all()) {
     await expect(card).toHaveCSS("border-top-width", "0px");
     await expect(card).toHaveCSS("background-color", "rgb(255, 255, 255)");
   }
@@ -227,6 +233,7 @@ test("02 — Tra cứu đủ 40 bàn: đúng quân Trắng/Đen, STT, tên và �
   await page.setViewportSize({ width: 390, height: 844 });
   const ms = await matches(recorder, tid); expect(ms).toHaveLength(40);
   await loginPage(page, recorder, "/record");
+  await expect(page.getByRole("link", { name: "Quay lại giao diện kỹ thuật" })).toHaveCount(0);
   const select = page.getByRole("combobox", { name: "Giải đấu" });
   if (await select.count()) await select.selectOption(tid);
   await page.getByRole("button", { name: "Vòng 2", exact: true }).click();
@@ -241,7 +248,19 @@ test("02 — Tra cứu đủ 40 bàn: đúng quân Trắng/Đen, STT, tên và �
       const dots = board.locator('span[aria-hidden="true"]');
       await expect(dots.nth(0)).toHaveClass(/bg-white/); await expect(dots.nth(1)).toHaveClass(/bg-slate-800/);
     }
+    for (const query of [String(m.board), `Bàn ${m.board}`, `ban${m.board}`, `#${m.board}`]) {
+      await page.getByRole("searchbox", { name: "Tìm bàn đấu" }).fill(query);
+      const board = page.getByRole("button").filter({ has: page.getByText(`Bàn ${m.board}`, { exact: true }) });
+      await expect(board).toBeVisible();
+      if (!/^\d+$/.test(query)) await expect(page.locator(".record-match")).toHaveCount(1);
+    }
   }
+  await page.getByRole("searchbox", { name: "Tìm bàn đấu" }).fill("nguyen");
+  expect(await page.locator(".record-match").count()).toBeGreaterThan(0);
+  await page.getByRole("searchbox", { name: "Tìm bàn đấu" }).fill("Bàn 999");
+  await expect(page.getByText("Không có bàn nào phù hợp.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Xóa tìm kiếm và bộ lọc", exact: true }).click();
+  await expect(page.locator(".record-match")).toHaveCount(40);
 });
 
 test("03 — Nhập đủ mã 1-0, 0-1, 1/2, 0-1F, 1-0F, 0-0F, BYE → AWAITING_CONFIRMATION", async ({ recorder, tid }) => {
@@ -298,6 +317,7 @@ test("05 — Không đồng ý → DISPUTED, dashboard cần xử lý, không c�
   expect(live.rounds[0].matches[0].result).toBeNull();
   await page.getByRole("button", { name: "Trả máy cho trọng tài – Đóng" }).click();
   await loginPage(page, tech, "/technical"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  await page.getByRole("button", { name: /^Cần xử lý/ }).click();
   await expect(page.getByRole("article").filter({ hasText: "Bàn 1" })).toContainText("Có bất đồng");
 });
 
@@ -313,6 +333,8 @@ test("06 — Projector: chỉ OFFICIAL, <5 giây, giờ đồng bộ/mất mạn
   await action(recorder, three, { type: "DISPUTE", side: "WHITE" });
   await loginPage(page, tech, `/projector/${tid}`);
   await page.getByRole("checkbox", { name: "Tự động lật trang" }).uncheck();
+  await expect(page.locator("tbody tr")).toHaveCount(40);
+  await page.getByRole("combobox", { name: "Số bàn mỗi trang", exact: true }).selectOption("20");
   await expect(page.locator("table")).toHaveCount(2); await expect(page.locator("tbody tr")).toHaveCount(20);
   const board = (name: string) => page.locator("tbody tr").filter({ hasText: name });
   await expect(board(one.white.fullName)).toContainText("1 - 0");
@@ -403,6 +425,7 @@ test("09 — Xuất XML/Excel qua UI thật: đúng vòng/toàn giải, byte m�
   expect(xml.headers()["content-type"]).toContain("application/xml"); expect(await xml.body()).toEqual(resultsFile);
   await loginPage(page, tech, "/technical"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
   const exports = page.getByRole("region", { name: "Xuất kết quả", exact: true });
+  const exportRound = page.getByRole("combobox", { name: "Vòng", exact: true });
   async function download(name: string, filename: string) {
     const event = page.waitForEvent("download");
     await exports.getByRole("link", { name, exact: true }).click();
@@ -410,7 +433,7 @@ test("09 — Xuất XML/Excel qua UI thật: đúng vòng/toàn giải, byte m�
     expect(await file.failure()).toBeNull(); expect(file.suggestedFilename()).toBe(filename);
     return { bytes: readFileSync((await file.path())!), url: new URL(file.url()) };
   }
-  await expect(exports.getByRole("combobox", { name: "Vòng", exact: true })).toHaveValue("0");
+  await expect(exportRound).toHaveValue("0");
   await expect(exports.getByRole("link", { name: "Xuất XML Vòng 1", exact: true })).toBeVisible();
   await expect(exports.getByRole("link", { name: "Xuất XML Vòng 2", exact: true })).toBeVisible();
   expect((await download("Xuất XML Vòng 1", "KetQua_Van1.xml")).bytes).toEqual(resultsFile);
@@ -421,7 +444,7 @@ test("09 — Xuất XML/Excel qua UI thật: đúng vòng/toàn giải, byte m�
   expect(allExcel.url.searchParams.has("round")).toBe(false); expect(allExcel.url.searchParams.has("status")).toBe(false);
   const allWorkbook = XLSX.read(allExcel.bytes); expect(allWorkbook.SheetNames).toEqual(["Chính thức"]);
   expect(XLSX.utils.sheet_to_json(allWorkbook.Sheets["Chính thức"], { header: 1 })).toHaveLength(46);
-  await exports.getByRole("combobox", { name: "Vòng", exact: true }).selectOption("1");
+  await exportRound.selectOption("1");
   await expect(exports.getByRole("link", { name: "Xuất XML Vòng 2", exact: true })).toHaveCount(0);
   expect((await download("Xuất XML Swiss-Manager (Vòng 1)", "KetQua_Van1.xml")).bytes).toEqual(resultsFile);
   const selectedExcel = await download("Xuất Excel (.xlsx)", "KetQua_Van1.xlsx");
@@ -446,7 +469,7 @@ test("09 — Xuất XML/Excel qua UI thật: đúng vòng/toàn giải, byte m�
   expect(reconciliationBook.SheetNames).toEqual(["Chính thức", "Chờ xác nhận", "Có bất đồng"]);
   for (const [name, count] of [["Chính thức", 38], ["Chờ xác nhận", 1], ["Có bất đồng", 1]] as const) expect(XLSX.utils.sheet_to_json(reconciliationBook.Sheets[name], { header: 1 })).toHaveLength(6 + count);
   await page.getByRole("button", { name: "Lịch sử toàn giải", exact: true }).click();
-  await exports.getByRole("combobox", { name: "Vòng", exact: true }).selectOption("0");
+  await exportRound.selectOption("0");
   expect((await download("Xuất Excel (.xlsx)", "KetQua_ToanGiai.xlsx")).url.searchParams.has("round")).toBe(false);
   await exports.getByRole("combobox", { name: "Nội dung Excel", exact: true }).selectOption("official");
   const officialOnly = XLSX.read((await download("Xuất Excel (.xlsx)", "KetQua_ToanGiai.xlsx")).bytes);
@@ -461,6 +484,7 @@ test("10 — Đổi tên, logo, màu trực tiếp trên giao diện và lưu sa
   await expect(projector.getByRole("status")).toContainText("Đã đồng bộ");
   await loginPage(page, tech, "/technical"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
   const name = page.getByRole("textbox", { name: /Tên giải/i });
+  await openSetup(page);
   await expect(name).toBeVisible();
   await name.fill("USCC Nghiệm thu nhận diện");
   await page.getByRole("textbox", { name: /Logo/i }).fill("/favicon.ico");
@@ -475,6 +499,7 @@ test("10 — Đổi tên, logo, màu trực tiếp trên giao diện và lưu sa
   await expect(page.getByRole("heading", { name: "USCC Nghiệm thu nhận diện", exact: true })).toBeVisible();
   await expect(projector.getByRole("heading", { level: 1 })).toHaveText("USCC Nghiệm thu nhận diện");
   await page.reload(); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  await openSetup(page);
   await expect(name).toHaveValue("USCC Nghiệm thu nhận diện");
   const t = await (await tech.get(`/api/tournaments/${tid}`)).json();
   expect(t).toMatchObject({ name: "USCC Nghiệm thu nhận diện", logoUrl: "/favicon.ico", primaryColor: "#a855f7", location: "Hội trường USCC", organizer: "USCC", totalRounds: 8, startDate: "2026-10-27T01:00:00.000Z", endDate: "2026-10-28T11:00:00.000Z" });
@@ -536,6 +561,7 @@ test("12 — Re-import đổi cặp: matchId=null nhưng toàn bộ AuditLog v�
 
 test("13 — Import UI preview/lỗi/commit; 409 khi KQ đổi sau Preview, không ghi dữ liệu hoặc log import", async ({ page, tech, recorder, tid }) => {
   await loginPage(page, tech, "/technical"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  await openSetup(page);
   const fileInput = page.getByLabel("File bốc thăm (.xls / .xlsx)", { exact: true });
   const invalid = sheet([["Ván 2"], header, [1, "x", "A", 0, "", 0, "B", 2]]);
   await fileInput.setInputFiles({ name: "bad.xlsx", mimeType: "application/octet-stream", buffer: invalid });
@@ -596,10 +622,12 @@ test("16 — Tùy chọn TTKT duyệt: đủ 2 xác nhận vẫn chờ, duyệt 
   const original = await (await tech.get(`/api/tournaments/${tid}`)).json(); expect(original.requireTechnicalApproval).toBe(false);
   expect((await tech.patch(`/api/tournaments/${tid}`, { data: { requireTechnicalApproval: "true" } })).status()).toBe(400);
   await loginPage(page, tech, "/technical"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  await openSetup(page);
   await page.getByRole("checkbox", { name: "Trọng tài kỹ thuật duyệt trước khi lên máy chiếu", exact: true }).check();
   await page.getByRole("button", { name: "Lưu cấu hình giải", exact: true }).click();
   await expect(page.getByText("Đã lưu cấu hình giải", { exact: true })).toBeVisible();
   expect((await (await tech.get(`/api/tournaments/${tid}`)).json()).requireTechnicalApproval).toBe(true);
+  await page.getByRole("button", { name: "Kết quả & công bố", exact: true }).click();
   let ms = await matches(recorder, tid);
   let first = await official(recorder, ms[0]);
   expect(first.status).toBe("AWAITING_CONFIRMATION"); expect(first.whiteConfirmedAt).not.toBeNull(); expect(first.blackConfirmedAt).not.toBeNull();
@@ -624,6 +652,7 @@ test("16 — Tùy chọn TTKT duyệt: đủ 2 xác nhận vẫn chờ, duyệt 
   await expect(recordingPage.getByText("Đã đủ xác nhận kỳ thủ — chờ Trọng tài kỹ thuật duyệt công bố.", { exact: true })).toBeVisible();
   await expect(recordingPage.getByRole("button", { name: "Tiếp tục cho kỳ thủ xác nhận", exact: true })).toHaveCount(0);
   await phoneContext.close();
+  await page.getByRole("button", { name: /^Cần xử lý/ }).click(); // bàn đã duyệt phải rời khỏi danh sách cần xử lý
   const article = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Vòng 2 · Bàn 1", exact: true }) });
   await article.getByRole("button", { name: "Duyệt công bố", exact: true }).click();
   await expect.poll(async () => (await matches(recorder, tid))[0].status).toBe("OFFICIAL");
@@ -669,6 +698,17 @@ test("17 — Projector Light: 40+ bàn vừa laptop, tỉ lệ/zoom/cột/trang,
     })).toBe(true);
   }
   await expect(page.getByTestId("projector-frame")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  async function assertTableTypography() {
+    const table = page.locator(".projector-table").first();
+    const nameSize = await table.locator(".projector-player").first().evaluate((el) => getComputedStyle(el).fontSize);
+    for (const th of await table.locator("th").all()) await expect(th).toHaveCSS("font-size", nameSize);
+    const tables = page.locator(".projector-table");
+    for (let i = 1; i < await tables.count(); i++) {
+      await expect(tables.nth(i)).toHaveCSS("border-inline-start-width", "1px");
+      await expect(tables.nth(i)).toHaveCSS("border-inline-start-color", "rgb(210, 210, 215)");
+    }
+  }
+  await assertTableTypography();
   await expect(page.locator("main")).toHaveCSS("color", "rgb(29, 29, 31)");
   expect(await page.locator("body").evaluate((b) => getComputedStyle(b).fontFamily)).toContain("-apple-system");
   for (const [width, height] of [[1366, 768], [1280, 800], [1024, 768], [1440, 900]]) {
@@ -677,6 +717,7 @@ test("17 — Projector Light: 40+ bàn vừa laptop, tỉ lệ/zoom/cột/trang,
       await page.getByRole("combobox", { name: "Số cột", exact: true }).selectOption(cols);
       await page.getByRole("combobox", { name: "Cỡ hiển thị", exact: true }).selectOption("125");
       await assertFits(40);
+      await assertTableTypography();
     }
   }
   for (const [aspect, ratio] of [["16:9", 16 / 9], ["16:10", 16 / 10], ["4:3", 4 / 3]] as const) {
@@ -708,6 +749,9 @@ test("17 — Projector Light: 40+ bàn vừa laptop, tỉ lệ/zoom/cột/trang,
   await page.getByRole("button", { name: "Trang 2", exact: true }).click();
   await page.getByRole("button", { name: "Ẩn thanh điều khiển", exact: true }).click();
   await expect(page.getByRole("region", { name: "Thiết lập trình chiếu", exact: true })).toHaveCount(0);
+  await expect.poll(() => page.getByTestId("projector-topbar").evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(30);
+  await expect(page.getByRole("link", { name: "Điều hành giải đấu" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hiện thanh điều khiển", exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("button", { name: "Hiện thanh điều khiển", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Hiện thanh điều khiển", exact: true }).click();
@@ -722,11 +766,11 @@ test("17 — Projector Light: 40+ bàn vừa laptop, tỉ lệ/zoom/cột/trang,
   await page.reload();
   await expect(page.getByRole("combobox", { name: "Số cột", exact: true })).toHaveValue("2");
   await expect(page.getByRole("combobox", { name: "Cỡ hiển thị", exact: true })).toHaveValue("100");
-  await assertFits(20);
+  await assertFits(40);
   await page.getByRole("checkbox", { name: "Tự động lật trang" }).uncheck();
   for (const scale of ["75", "85", "90", "100", "110", "125"]) {
     await page.getByRole("combobox", { name: "Cỡ hiển thị", exact: true }).selectOption(scale);
-    await assertFits(20);
+    await assertFits(40);
   }
   await upload(tech, tid, "pairing", sheet([["Ván 2"], header, ...sourceRows, ...[41, 42, 43].map((board, i) => [board, 81 + i * 2, `Kỳ thủ thêm Trắng ${board}`, 0, "", 0, `Kỳ thủ thêm Đen ${board}`, 82 + i * 2])]), "commit", "43-boards.xlsx");
   await page.getByRole("combobox", { name: "Số bàn mỗi trang", exact: true }).selectOption("40");
@@ -886,4 +930,151 @@ test("19 — Admin kế thừa đầy đủ quyền TTKT: giải/import/kết qu
   await expect(page.getByRole("link", { name: "Quản lý tài khoản", exact: true })).toBeVisible();
   await page.goto(`/projector/${t.id}`); await expect(page.getByRole("heading", { name: t.name, exact: true })).toBeVisible();
   expect((await admin.delete(`/api/tournaments/${t.id}`, { data: { confirmName: t.name } })).status()).toBe(200);
+});
+
+test("20 — Visual review: desktop/mobile và bảng 40 bàn có kết quả chính thức", async ({ page, admin, recorder, tid }) => {
+  mkdirSync(".impeccable/review", { recursive: true });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/login"); await page.screenshot({ path: ".impeccable/review/login-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: ".impeccable/review/login-mobile.png", fullPage: true });
+  await admin.patch(`/api/tournaments/${tid}`, { data: { name: "Giải Cờ Vua USCC Mở Rộng 2026", organizer: "USCC Chess Club", location: "TP. Hồ Chí Minh" } });
+  const ms = await matches(admin, tid);
+  for (let i = 0; i < 28; i++) await action(admin, ms[i], { type: "EDIT_RESULT", result: ["WHITE_WIN", "DRAW", "BLACK_WIN"][i % 3], mode: "EXCEPTION", reason: "Dữ liệu test giao diện" });
+  let disputed = await action(recorder, ms[28], { type: "ENTER_RESULT", result: "DRAW" });
+  disputed = await action(recorder, disputed, { type: "DISPUTE", side: "WHITE" }); expect(disputed.status).toBe("DISPUTED");
+  await loginPage(page, admin, "/technical"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  // Mặc định "Tất cả bàn", đứng trước "Cần xử lý"
+  const viewTabs = page.getByRole("group", { name: "Chế độ xem" }).getByRole("button");
+  await expect(viewTabs.first()).toHaveText("Tất cả bàn"); await expect(viewTabs.first()).toHaveAttribute("aria-pressed", "true");
+  await expect(viewTabs.nth(1)).toHaveText("Cần xử lý (1)");
+  await expect(page.getByRole("article")).toHaveCount(40);
+  await viewTabs.nth(1).click();
+  await expect(page.getByRole("article")).toHaveCount(1);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const topChrome = await page.locator(".tournament-bar").boundingBox();
+  expect(topChrome!.y + topChrome!.height).toBeLessThan(190);
+  const overview = await page.locator(".dashboard-overview").boundingBox();
+  expect(overview!.height).toBeLessThan(120);
+  await page.screenshot({ path: ".impeccable/review/technical-desktop.png", fullPage: true });
+  await openSetup(page); await page.screenshot({ path: ".impeccable/review/setup-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: ".impeccable/review/technical-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "Kết quả & công bố", exact: true }).click();
+  await page.screenshot({ path: ".impeccable/review/technical-results-mobile.png", fullPage: true });
+  const urgent = await page.getByRole("article").first().boundingBox();
+  const exporting = await page.getByRole("region", { name: "Xuất kết quả", exact: true }).boundingBox();
+  expect(urgent!.y).toBeLessThan(exporting!.y);
+  await loginPage(page, admin, "/record"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  await expect(page.locator(".record-match")).toHaveCount(40);
+  await expect(page.getByRole("link", { name: "Quay lại giao diện kỹ thuật" })).toBeVisible();
+  await page.getByRole("searchbox", { name: "Tìm bàn đấu" }).fill("Bàn 12");
+  await expect(page.locator(".record-match")).toHaveCount(1);
+  await page.screenshot({ path: ".impeccable/review/record-mobile.png", fullPage: true });
+  await page.getByRole("searchbox", { name: "Tìm bàn đấu" }).fill("");
+  await page.setViewportSize({ width: 1440, height: 1000 }); await page.screenshot({ path: ".impeccable/review/record-desktop.png", fullPage: true });
+  await loginPage(page, admin, "/technical/users");
+  await expect(page.getByRole("article").first()).toBeVisible();
+  await page.screenshot({ path: ".impeccable/review/users-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 }); await page.screenshot({ path: ".impeccable/review/users-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/projector/${tid}`); await expect(page.locator("tbody tr")).toHaveCount(40);
+  await page.getByRole("button", { name: "Ẩn thanh điều khiển", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Đã đồng bộ");
+  await page.screenshot({ path: ".impeccable/review/projector-desktop.png" });
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await expect.poll(async () => { const box = await page.getByTestId("projector-frame").boundingBox(); return box!.x >= 0 && box!.y >= 0 && box!.x + box!.width <= 1367 && box!.y + box!.height <= 769; }).toBe(true);
+  await page.screenshot({ path: ".impeccable/review/projector-laptop.png" });
+  await page.getByRole("button", { name: "Hiện thanh điều khiển", exact: true }).click();
+  await page.screenshot({ path: ".impeccable/review/projector-controls.png" });
+});
+
+test("21 — Nút quay lại giao diện kỹ thuật chỉ dành cho Admin và TTKT", async ({ page, admin, tech, recorder }) => {
+  for (const [api, canReturn] of [[admin, true], [tech, true], [recorder, false]] as const) {
+    await loginPage(page, api, "/record");
+    const back = page.getByRole("link", { name: "Quay lại giao diện kỹ thuật" });
+    if (canReturn) {
+      await expect(back).toBeVisible();
+      await expect(back).toHaveAttribute("href", "/technical");
+    } else await expect(back).toHaveCount(0);
+  }
+});
+
+test("22 — Bảng xếp hạng Swiss-Manager: nhập UI preview/commit, ghi đè cần xác nhận, chặn arbiter, chiếu projector", async ({ page, tech, recorder, tid }) => {
+  const standingsFile = sample("Xếp hạng tạm thời-chung cuộc xuất ra..xls");
+  // Oracle độc lập: đọc ô file mẫu trực tiếp
+  const raw = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(standingsFile).Sheets.Sheet1, { header: 1, defval: "" });
+  const expected = raw.slice(5, 85).map((r) => String(r[2]));
+  expect(expected).toHaveLength(80);
+  expect((await recorder.post(`/api/tournaments/${tid}/import/standings`, { multipart: { file: { name: "x.xls", mimeType: "application/octet-stream", buffer: standingsFile } } })).status()).toBe(403);
+
+  await loginPage(page, tech, "/technical"); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  await openSetup(page);
+  const input = page.getByLabel("File xếp hạng (.xls / .xlsx)", { exact: true });
+  await input.setInputFiles({ name: "bad.xlsx", mimeType: "application/octet-stream", buffer: sheet([["Hạng", "STT", "Tên", "Điểm"], [1, 1, "A", "x"]]) });
+  await page.getByRole("button", { name: "Xem trước bảng xếp hạng", exact: true }).click();
+  await expect(page.getByText(/Lỗi dòng 2 D \(Điểm\)/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Nhập bảng xếp hạng đã xem trước", exact: true })).toBeDisabled();
+  expect(await db.standings.count({ where: { tournamentId: tid } })).toBe(0);
+
+  await input.setInputFiles({ name: "xep-hang.xls", mimeType: "application/octet-stream", buffer: standingsFile });
+  await page.getByRole("button", { name: "Xem trước bảng xếp hạng", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Xếp hạng sau ván 1 · 80 kỳ thủ" })).toBeVisible();
+  await page.getByRole("button", { name: "Nhập bảng xếp hạng đã xem trước", exact: true }).click();
+  await expect(page.getByText(/Đã nhập Xếp hạng sau ván 1: 80 kỳ thủ/)).toBeVisible();
+  const saved = await db.standings.findUniqueOrThrow({ where: { tournamentId: tid } });
+  expect(JSON.parse(saved.rows).map((r: { name: string }) => r.name)).toEqual(expected);
+  expect(await db.importLog.count({ where: { tournamentId: tid, kind: "STANDINGS", rowCount: 80, roundNumber: 1 } })).toBe(1);
+
+  // Thay bảng cũ: thiếu xác nhận -> 409, không đổi dữ liệu; có xác nhận -> thay
+  const v2 = sheet([["Xếp hạng sau ván 2"], ["Hạng", "STT", "Tên", "LĐ", "CLB", "Điểm", "BH:GP"], [1, 41, "Nguyễn Hồng Phúc (B)", "VIE", "UIT", "2", "1"]]);
+  await upload(tech, tid, "standings", v2, "commit", "v2.xlsx", {}, 409);
+  expect((await db.standings.findUniqueOrThrow({ where: { tournamentId: tid } })).title).toBe("Xếp hạng sau ván 1");
+  await upload(tech, tid, "standings", standingsFile, "commit", "same.xls", { confirmOverwrite: "true" });
+
+  // Projector: nút chuyển trên thanh trên cùng + link ?view=standings
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto(`/projector/${tid}`);
+  await expect(page.getByRole("table", { name: "Bàn đấu cột 1" })).toBeVisible();
+  await page.getByRole("button", { name: "Xem bảng xếp hạng", exact: true }).click();
+  const col1 = page.getByRole("table", { name: "Bảng xếp hạng cột 1" });
+  await expect(col1).toBeVisible();
+  await expect(page.getByText("Xếp hạng sau ván 1", { exact: true })).toBeVisible();
+  await expect(col1.getByRole("columnheader", { name: "BH:GP" })).toBeVisible();
+  await expect(col1.getByRole("row").nth(1)).toContainText("Bạch Triều Vĩ");
+  // Mặc định 80 người/1 trang, 2 cột x 40 dòng; nhãn là "người" chứ không phải "bàn"
+  await expect(page.getByRole("table", { name: /Bảng xếp hạng cột/ }).getByRole("row")).toHaveCount(2 + 80);
+  await expect(page.getByRole("table", { name: "Bảng xếp hạng cột 2" }).getByRole("row").last()).toContainText("Văn Huy Tài");
+  await expect(page.getByRole("combobox", { name: "Số người mỗi trang" })).toHaveValue("80");
+  await expect(page.getByRole("combobox", { name: "Chia trang theo" }).locator("option[value=boards]")).toHaveText("Số người mỗi trang");
+  // 80 người: tiêu đề Hạng/Kỳ thủ/CLB/Điểm/BH:GP không bị cắt, bảng không tràn khung
+  const clipped = await page.locator(".projector-table th").evaluateAll((ths) => ths.filter((th) => th.scrollWidth > th.clientWidth + 1 || th.scrollHeight > th.clientHeight + 1).map((th) => th.textContent));
+  expect(clipped).toEqual([]);
+  // Hạng/hệ số phụ không to hơn tên kỳ thủ khi chữ thu nhỏ cho 80 dòng
+  const sizes = await page.locator(".projector-table tbody tr").first().locator("td").evaluateAll((tds) => tds.map((td) => parseFloat(getComputedStyle(td).fontSize)));
+  expect(Math.max(sizes[0], sizes[4])).toBeLessThanOrEqual(sizes[1]);
+  const box = await page.getByTestId("projector-boards").evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }));
+  expect(box.scroll).toBeLessThanOrEqual(box.client + 1);
+  await page.screenshot({ path: "test-results/acceptance/standings-projector-80.png" });
+  await page.getByRole("combobox", { name: "Số người mỗi trang" }).selectOption("40");
+  await expect(page.getByRole("table", { name: /Bảng xếp hạng cột/ }).getByRole("row")).toHaveCount(2 + 40);
+  await page.getByRole("button", { name: "Trang 2", exact: true }).click();
+  await expect(page.getByRole("table", { name: "Bảng xếp hạng cột 2" }).getByRole("row").last()).toContainText("Văn Huy Tài");
+  await page.getByRole("combobox", { name: "Số người mỗi trang" }).selectOption("80");
+  await page.getByRole("button", { name: "Xem bàn đấu", exact: true }).click();
+  await expect(page.getByRole("table", { name: "Bàn đấu cột 1" })).toBeVisible();
+
+  await page.goto(`/technical`); await page.getByRole("combobox", { name: "Giải đấu" }).selectOption(tid);
+  const link = page.getByRole("link", { name: "Chiếu bảng xếp hạng ↗" });
+  expect(await link.getAttribute("href")).toBe(`/projector/${tid}?view=standings`);
+  await page.goto(`/projector/${tid}?view=standings`);
+  await expect(page.getByRole("table", { name: "Bảng xếp hạng cột 1" })).toBeVisible();
+  await page.screenshot({ path: "test-results/acceptance/standings-projector-1366.png" });
+
+  // Xóa giải cascade luôn bảng xếp hạng
+  const t = await db.tournament.findUniqueOrThrow({ where: { id: tid } });
+  expect((await tech.delete(`/api/tournaments/${tid}`, { data: { confirmName: t.name } })).ok()).toBeTruthy();
+  expect(await db.standings.count({ where: { tournamentId: tid } })).toBe(0);
 });

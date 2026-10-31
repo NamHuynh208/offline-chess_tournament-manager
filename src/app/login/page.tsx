@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogIn } from "lucide-react";
+import { ChessKnight, LogIn, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,12 +28,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4">
-      <div>
-        <h1 className="text-2xl font-bold">USCC – Trọng tài</h1>
-        <p className="text-slate-500">Chỉ dành cho trọng tài được cấp tài khoản</p>
-      </div>
-      <form onSubmit={submit} className="flex flex-col gap-4">
+    <main className="login-page"><div className="login-panel">
+      <div className="brand-signature"><ChessKnight aria-hidden />USCC Tournament Manager</div>
+      <h1>Điều hành giải đấu.<br />Tập trung vào từng ván cờ.</h1>
+      <p className="leading-relaxed text-slate-600">Đăng nhập để ghi nhận, xác nhận và công bố kết quả.</p>
+      <form onSubmit={submit} className="login-form">
         <label className="flex flex-col gap-1 font-medium">
           Tài khoản
           <input name="username" autoComplete="username" autoCapitalize="none" required className="h-14 rounded-sm border border-[#E5E5EA] bg-white px-4 text-lg" />
@@ -43,10 +42,12 @@ export default function LoginPage() {
           <input name="password" type="password" autoComplete="current-password" required className="h-14 rounded-sm border border-[#E5E5EA] bg-white px-4 text-lg" />
         </label>
         {error && <p role="alert" className="rounded-sm bg-red-50 p-3 text-red-700">{error}</p>}
-        <button disabled={busy} className="flex h-14 items-center justify-center gap-2 rounded-sm bg-sky-500 text-lg font-semibold text-white disabled:opacity-60">
+        <button disabled={busy} className="ui-primary h-12 w-full disabled:opacity-60">
           <LogIn size={22} /> {busy ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
       </form>
+      <p className="login-note flex items-start gap-2"><ShieldCheck aria-hidden size={18} className="mt-0.5 shrink-0" />Chỉ dành cho trọng tài được cấp tài khoản. Liên hệ Admin nếu bạn cần hỗ trợ truy cập.</p>
+      </div>
     </main>
   );
 }

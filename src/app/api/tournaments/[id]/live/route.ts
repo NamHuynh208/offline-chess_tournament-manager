@@ -7,8 +7,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (auth.error) return auth.error;
   const t = await prisma.tournament.findUnique({
     where: { id: (await params).id },
-    include: { rounds: { orderBy: { number: "asc" }, include: { matches: { orderBy: { board: "asc" }, include: matchInclude } } } },
+    include: { standings: true, rounds: { orderBy: { number: "asc" }, include: { matches: { orderBy: { board: "asc" }, include: matchInclude } } } },
   });
+  const s = t?.standings;
   if (!t) return Response.json({ error: "Không tìm thấy giải" }, { status: 404 });
   const projector = new URL(req.url).searchParams.get("view") === "projector";
   return Response.json({
@@ -18,5 +19,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       // Projector không nhận tỷ số chưa chính thức, kể cả trong payload mạng.
       return projector ? { ...c, result: m.status === "OFFICIAL" ? c.result : null, exceptionReason: null } : c;
     }) })),
+    standings: s && { title: s.title, roundNumber: s.roundNumber, tiebreakLabels: JSON.parse(s.tiebreakLabels), rows: JSON.parse(s.rows), importedAt: s.importedAt.toISOString() },
   }, { headers: { "Cache-Control": "no-store, private" } });
 }

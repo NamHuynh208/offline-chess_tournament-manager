@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { ClientMatch } from "./matches";
+import type { StandingRow } from "./swiss-manager";
 
 export type LiveTournament = {
   tournament: { id: string; name: string; logoUrl: string | null; primaryColor: string; timezone: string; requireTechnicalApproval: boolean };
   rounds: { number: number; matches: ClientMatch[] }[];
+  standings?: { title: string; roundNumber: number | null; tiebreakLabels: string[]; rows: StandingRow[]; importedAt: string } | null;
 };
 
 export function useLiveTournament(id: string, projector = false) {

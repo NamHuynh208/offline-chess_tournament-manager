@@ -204,7 +204,7 @@ export default function ResultFlow({ match: m, brand, pendingSync, offline, disp
   }
 
   const kiosk = KIOSK_STEPS.includes(step) || (step === "exception" && exceptionFromKiosk);
-  return kiosk ? <Kiosk>{content}</Kiosk> : <div className="fixed inset-0 z-40 overflow-y-auto bg-[#F5F5F7]">{content}</div>;
+  return kiosk ? <Kiosk>{content}</Kiosk> : <div className="result-sheet fixed inset-0 z-40 overflow-y-auto">{content}</div>;
 }
 
 /** Toàn màn hình, chặn nút Back, khóa cuộn trang dưới: kỳ thủ cầm máy không bấm nhầm sang bàn khác */
@@ -255,7 +255,7 @@ function PlayerTurn(props: {
   };
   const dark = side === "BLACK";
   return (
-    <div className={`flex min-h-dvh flex-col gap-5 p-5 ${dark ? "bg-slate-900 text-white" : "bg-white text-slate-900"}`}>
+    <div className={`kiosk-turn flex min-h-dvh flex-col gap-5 ${dark ? "bg-slate-900 text-white" : "bg-white text-slate-900"}`}>
       <div className="flex items-center justify-between">
         <span className={`rounded-sm px-3 py-1 text-sm font-bold uppercase ${dark ? "bg-white text-slate-900" : "bg-slate-900 text-white"}`}>
           Lượt {side === "WHITE" ? "1" : "2"}: Kỳ thủ {SIDE_LABEL[side]}
@@ -267,11 +267,11 @@ function PlayerTurn(props: {
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <div className="text-lg font-semibold uppercase opacity-70">Kỳ thủ cầm quân {SIDE_LABEL[side]}</div>
         <PieceDot side={side} className={`size-10 ${dark ? "border-white" : ""}`} />
-        <div className="text-4xl leading-tight font-black">{name}</div>
+        <div className="player-name text-4xl leading-tight">{name}</div>
         {sno != null && <div className="text-2xl font-semibold">STT {sno}</div>}
         <div className={`mt-4 w-full rounded-sm p-5 ${dark ? "bg-white/10" : "bg-slate-100"}`}>
           <div className="text-sm font-semibold uppercase opacity-70">Kết quả ván đấu</div>
-          <div className="text-7xl font-black tabular-nums">{result ? RESULT_DISPLAY[result].score : "?"}</div>
+          <div className="kiosk-score text-7xl tabular-nums">{result ? RESULT_DISPLAY[result].score : "?"}</div>
           <div className="text-2xl font-bold">{result ? RESULT_DISPLAY[result].text : ""}</div>
         </div>
       </div>

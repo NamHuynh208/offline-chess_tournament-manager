@@ -196,6 +196,105 @@ export function parsePairingSheet(data: Uint8Array, opts: { headerRow?: number; 
   return { round, headerRow: excelRow(headerIdx), header, columns, rows: pairings, errors, warnings };
 }
 
+// ---------- Đầu vào 3: .xls/.xlsx bảng xếp hạng (tạm thời / chung cuộc) ----------
+
+/** Điểm/hệ số phụ giữ nguyên chuỗi trong file (vd "1½", "0") để hiển thị đúng như Swiss-Manager */
+export type StandingRow = { row: number; rank: number; startNo: number | null; name: string; federation: string | null; club: string | null; points: string; tiebreaks: string[] };
+
+// Tiếng Việt + tiếng Anh vì Swiss-Manager xuất theo ngôn ngữ giao diện
+const STANDING_HEADERS = {
+  rank: ["Hạng", "Rk.", "Rk", "Rank"],
+  startNo: ["STT", "SNo", "Snr", "No."],
+  name: ["Tên", "Name"],
+  federation: ["LĐ", "FED", "Fed"],
+  club: ["CLB", "Club", "Club/City"],
+  points: ["Điểm", "Pts.", "Pts", "Points"],
+};
+
+export function parseStandingsSheet(data: Uint8Array) {
+  const errors: Issue[] = [];
+  const empty = { title: "", round: null as number | null, headerRow: null as number | null, tiebreakLabels: [] as string[], rows: [] as StandingRow[] };
+  let sheet: XLSX.WorkSheet | undefined;
+  try {
+    const wb = XLSX.read(data, { type: "array" });
+    sheet = wb.Sheets[wb.SheetNames[0]];
+  } catch (e) {
+    errors.push({ message: `Không đọc được file Excel: ${(e as Error).message}` });
+  }
+  if (!sheet?.["!ref"]) return { ...empty, errors: errors.length ? errors : [{ message: "Sheet trống" }] };
+
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: false, blankrows: true });
+  const off = XLSX.utils.decode_range(sheet["!ref"]).s;
+  const excelRow = (i: number) => i + off.r + 1;
+  const colName = (c: number) => XLSX.utils.encode_col(c + off.c);
+  const find = (header: string[], names: string[]) => header.findIndex((h) => names.some((n) => n.toLowerCase() === h.toLowerCase()));
+
+  const headerIdx = rows.findIndex((r) => {
+    const h = r.map(normName);
+    return find(h, STANDING_HEADERS.name) >= 0 && find(h, STANDING_HEADERS.points) >= 0 && find(h, STANDING_HEADERS.rank) >= 0;
+  });
+  if (headerIdx < 0) return { ...empty, errors: [{ message: "Không tìm thấy dòng tiêu đề bảng xếp hạng (dòng có 'Hạng', 'Tên', 'Điểm')" }] };
+
+  const header = rows[headerIdx].map(normName);
+  const col = Object.fromEntries(Object.entries(STANDING_HEADERS).map(([k, names]) => [k, find(header, names)])) as Record<keyof typeof STANDING_HEADERS, number>;
+  // mọi cột có tiêu đề nằm sau "Điểm" là hệ số phụ (BH, GP, SB...)
+  const tiebreakCols = header.flatMap((h, i) => (i > col.points && h ? [i] : []));
+
+  let title = "";
+  let round: number | null = null;
+  for (const r of rows.slice(0, headerIdx)) {
+    const text = r.map(normName).filter(Boolean).join(" ");
+    const m = text.match(/\b(?:ván|round)\s+(\d+)/i);
+    if (m) {
+      title = text;
+      round = Number(m[1]);
+    }
+  }
+
+  const standings: StandingRow[] = [];
+  const snos = new Map<number, number>();
+  let lastRank = 0;
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const cells = rows[i].map(normName);
+    const first = cells.find((c) => c !== "");
+    if (first === undefined || COPYRIGHT.test(first)) continue;
+    const row = excelRow(i);
+    const rowErrors: Issue[] = [];
+    const rankText = cells[col.rank] ?? "";
+    // Swiss-Manager để trống ô Hạng khi đồng hạng với dòng trên
+    let rank = lastRank;
+    if (rankText) {
+      if (/^\d+$/.test(rankText) && Number(rankText) > 0) rank = Number(rankText);
+      else rowErrors.push({ row, column: `${colName(col.rank)} (Hạng)`, message: `Không phải số nguyên dương: "${rankText}"` });
+    } else if (!lastRank) rowErrors.push({ row, column: `${colName(col.rank)} (Hạng)`, message: "Dòng đầu tiên phải có hạng" });
+    const name = cells[col.name] ?? "";
+    if (!name) rowErrors.push({ row, column: `${colName(col.name)} (Tên)`, message: "Thiếu tên kỳ thủ" });
+    const points = cells[col.points] ?? "";
+    if (parsePoints(points) === null) rowErrors.push({ row, column: `${colName(col.points)} (Điểm)`, message: points ? `Điểm không hợp lệ: "${points}"` : "Thiếu điểm" });
+    const snoText = col.startNo >= 0 ? cells[col.startNo] ?? "" : "";
+    const startNo = /^\d+$/.test(snoText) ? Number(snoText) : null;
+    if (snoText && startNo === null) rowErrors.push({ row, column: `${colName(col.startNo)} (STT)`, message: `Không phải số: "${snoText}"` });
+    if (startNo !== null && snos.has(startNo)) rowErrors.push({ row, column: `${colName(col.startNo)} (STT)`, message: `STT ${startNo} xuất hiện nhiều lần (đã có ở dòng ${snos.get(startNo)})` });
+    if (startNo !== null) snos.set(startNo, row);
+    if (rank) lastRank = rank;
+
+    if (rowErrors.length) errors.push(...rowErrors);
+    else
+      standings.push({
+        row,
+        rank,
+        startNo,
+        name,
+        federation: col.federation >= 0 ? cells[col.federation] || null : null,
+        club: col.club >= 0 ? cells[col.club] || null : null,
+        points,
+        tiebreaks: tiebreakCols.map((c) => cells[c] ?? ""),
+      });
+  }
+  if (!standings.length && !errors.length) errors.push({ message: "Không có kỳ thủ nào sau dòng tiêu đề" });
+  return { title: title || "Bảng xếp hạng", round, headerRow: excelRow(headerIdx), tiebreakLabels: tiebreakCols.map((c) => header[c]), rows: standings, errors };
+}
+
 // ---------- Đầu ra 1: XML kết quả nhập lại Swiss-Manager ----------
 
 export type ExportMatch = {

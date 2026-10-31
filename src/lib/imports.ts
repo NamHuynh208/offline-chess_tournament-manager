@@ -2,7 +2,7 @@
 import { Prisma, type User } from "@prisma/client";
 import { createHmac } from "node:crypto";
 import { prisma } from "./db";
-import { nameKey, type Issue, type ParsedPlayer, type parsePairingSheet } from "./swiss-manager";
+import { nameKey, type Issue, type ParsedPlayer, type parsePairingSheet, type parseStandingsSheet } from "./swiss-manager";
 
 const MAX_UPLOAD = 5 * 1024 * 1024;
 
@@ -223,6 +223,39 @@ export async function planPairing(tournamentId: string, parsed: ReturnType<typeo
           replaced: replaced.length ? JSON.stringify(replaced.map(({ whitePlayer, blackPlayer, ...m }) => ({ ...m, white: whitePlayer.fullName, black: blackPlayer?.fullName ?? null }))) : null,
         },
       });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  return { preview, commit };
+}
+
+// ---------- Bảng xếp hạng (.xls/.xlsx) ----------
+
+export async function planStandings(tournamentId: string, parsed: ReturnType<typeof parseStandingsSheet>) {
+  const snap = (tx: Prisma.TransactionClient) => tx.tournament.findUnique({ where: { id: tournamentId }, select: { totalRounds: true, standings: true } });
+  const snapshot = await snap(prisma);
+  if (!snapshot) return null;
+  const token = importToken({ kind: "STANDINGS", parsed }, snapshot);
+  const errors = [...parsed.errors];
+  if (parsed.round !== null && parsed.round > snapshot.totalRounds) errors.push({ message: `Ván ${parsed.round} vượt quá tổng số vòng của giải (${snapshot.totalRounds})` });
+  const old = snapshot.standings;
+  const preview = {
+    previewToken: token,
+    title: parsed.title,
+    round: parsed.round,
+    tiebreakLabels: parsed.tiebreakLabels,
+    rows: parsed.rows,
+    // cảnh báo ghi đè: bảng xếp hạng đang chiếu sẽ bị thay
+    replaces: old && { title: old.title, fileName: old.fileName, importedAt: old.importedAt.toISOString() },
+    errors,
+    canCommit: errors.length === 0 && parsed.rows.length > 0,
+  };
+
+  const commit = (user: User, fileName: string, expectedToken: unknown) =>
+    prisma.$transaction(async (tx) => {
+      if (expectedToken !== token || importToken({ kind: "STANDINGS", parsed }, await snap(tx)) !== token) throw new ImportConflict();
+      const data = { title: parsed.title, roundNumber: parsed.round, tiebreakLabels: JSON.stringify(parsed.tiebreakLabels), rows: JSON.stringify(parsed.rows), fileName };
+      await tx.standings.upsert({ where: { tournamentId }, update: data, create: { ...data, tournamentId } });
+      return tx.importLog.create({ data: { tournamentId, userId: user.id, kind: "STANDINGS", fileName, roundNumber: parsed.round, rowCount: parsed.rows.length } });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   return { preview, commit };

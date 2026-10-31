@@ -1,4 +1,4 @@
-> Cập nhật: 2026-10-28
+> Cập nhật: 2026-10-31
 
 ## Stack
 - Next.js 15 App Router (`src/app`), TypeScript, TailwindCSS v4, alias `@/*` → `src/*`
@@ -6,9 +6,17 @@
 - Node >=20.20.2, iron-session8.0.4/cookie0.7.2 + bcryptjs; xlsx; fast-xml-parser; lucide-react; tsx seed; tar7.5.22 dev dep đóng gói đa nền tảng
 
 ## Cấu trúc
+- PRODUCT.md/ DESIGN.md/.impeccable/design.json: product facts/visual tokens Apple light, .impeccable/surfaces/system-redesign.md direction; .impeccable/review screenshots gitignored không ship
+- src/lib/match-search.ts: foldSearch +matchSearch board/name/STT, unit scripts/test-match-search.ts; RecordApp sắp board match số thuần lên đầu
+- TechnicalApp workspace results/setup giữ mounted state, mobile results before export bằng CSS order; round-filter chung phía trên; globalsemantic action/canvas/ink tokens/ui-primary/ui-secondary +keyboard outline
+- Projector defaults40boards/2columns/auto=false; frame auto kích thước100% tránh stale resize; typography/points/score/table hierarchy, lấy settings cũ validate như trước
+- Projector table header lấy CSS var --board-font bằng font tên, --table-header-height tính theo desiredFont*1.55; sibling table phân cách bằng border-inline-start 1px #d2d2d7. Top /technical vertical rhythm được thu gọn trong globals.css.
+- Projector controlsHidden true: section controls unmount khỏi layout, projector-topbar--hidden cao28px chỉ giữ link back + toggle; trạng thái vẫn lưu localStorage.
+- record/page.tsx chuyển Role đã xác thực cho RecordApp; chỉ ADMIN/TECHNICAL_ARBITER render anchor quay lại /technical, không thay đổi server authorization.
 - `prisma/schema.prisma`, `prisma/migrations/`, `prisma/seed.ts`
 - `samples/`: file mẫu Swiss-Manager (XML danh sách, .xls bốc thăm, XML kết quả)
-- `src/lib/swiss-manager.ts`: parser/exporter thuần (XML kỳ thủ, .xls bốc thăm, XML kết quả, .xlsx) — không đụng DB
+- `src/lib/swiss-manager.ts`: parser/exporter thuần (XML kỳ thủ, .xls bốc thăm, .xls xếp hạng, XML kết quả, .xlsx) — không đụng DB
+- Bảng xếp hạng: model `Standings` (1/giải, JSON rows), `planStandings` trong imports.ts, `src/app/technical/StandingsImport.tsx`, projector `settings.view`
 - `src/lib/imports.ts`: `planPlayers`/`planPairing` trả `{ preview, commit }`; HMAC previewToken gắn parsed file/snapshot toàn giải, transaction Serializable kiểm lại snapshot trước ghi, ImportConflict ->409
 - `src/lib/export.ts`, `results.ts` (mã SM, nhãn trạng thái), `time.ts` (formatInTz), `tournament.ts` (validate FR-01)
 - `src/lib/session.ts` (iron-session, `requireUser`), `db.ts` (Prisma singleton)

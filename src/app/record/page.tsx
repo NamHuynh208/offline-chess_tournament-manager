@@ -12,7 +12,7 @@ export default async function RecordPage() {
   });
   return (
     <RecordApp
-      user={{ id: auth.user.id, fullName: auth.user.fullName }}
+      user={{ id: auth.user.id, fullName: auth.user.fullName, role: auth.user.role }}
       tournaments={tournaments.map((t) => ({ ...t, startDate: t.startDate?.toISOString() ?? null, endDate: t.endDate?.toISOString() ?? null, rounds: t.rounds.map((r) => r.number) }))}
     />
   );

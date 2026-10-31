@@ -83,6 +83,20 @@ model Tournament {
   rounds       Round[]
   importLogs   ImportLog[]
   auditLogs    AuditLog[]
+  standings    Standings?
+}
+
+// Bảng xếp hạng mới nhất nhập từ Swiss-Manager (hệ thống không tự tính hạng). Bảng riêng để không đổi Tournament.updatedAt.
+model Standings {
+  id             String     @id @default(cuid())
+  tournamentId   String     @unique
+  tournament     Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  title          String     // vd "Xếp hạng sau ván 1"
+  roundNumber    Int?
+  tiebreakLabels String     // JSON string[] — cột phụ sau "Điểm", vd ["BH:GP"]
+  rows           String     // JSON StandingRow[]
+  fileName       String
+  importedAt     DateTime   @default(now()) @updatedAt
 }
 
 model Player {
@@ -173,6 +187,7 @@ model AuditLog {
 enum ImportKind {
   PLAYERS // XML danh sách kỳ thủ
   PAIRING // .xls/.xlsx bốc thăm 1 vòng
+  STANDINGS // .xls/.xlsx bảng xếp hạng tạm thời / chung cuộc
 }
 
 model ImportLog {
